@@ -3,6 +3,11 @@
 """
 Helpers for :py:class:`~twisted.python.filepath.FilePath`.
 """
+from tempfile import mkdtemp
+
+from twisted.python.filepath import FilePath, IFilePath
+from twisted.python.components import proxyForInterface
+from zope.interface import classImplements
 
 
 def make_file(path, content='', permissions=None):
@@ -38,3 +43,58 @@ def make_directory(path):
     if not path.isdir():
         path.makedirs()
     return path
+
+
+class IFilePathExtended(IFilePath):
+    """
+    ``IFilePath`` plus some other ``FilePath`` methods that we need in Flocker.
+    """
+    def remove():
+        """
+        Recursively remove the path and all its descendants.
+        """
+
+    def descendant():
+        """
+        Retrieve a descendant FilePath.
+        """
+
+# FilePath provides these and more
+classImplements(FilePath, IFilePathExtended)
+
+
+class _TemporaryPath(proxyForInterface(IFilePathExtended, "_path")):
+    """
+    An ``IFilePath`` which when used as a context manager will remove itself.
+    """
+    def __init__(self, path):
+        self._path = path
+
+    @property
+    def path(self):
+        return self._path.path
+
+    def __eq__(self, other):
+        return self._path == other
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.remove()
+
+    def __repr__(self):
+        return repr(self._path)
+
+
+def temporary_directory(parent_path=None):
+    """
+    :returns: A temporary directory (a ``_TemporaryPath``).
+    """
+    mkdtemp_args = {}
+    if parent_path is not None:
+        mkdtemp_args["dir"] = parent_path.path
+
+    return _TemporaryPath(
+        path=FilePath(mkdtemp(**mkdtemp_args))
+    )

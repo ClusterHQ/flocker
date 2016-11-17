@@ -8,19 +8,15 @@ Running Flocker in Containers
 
     <div class="admonition labs">
         <p>This page describes one of our experimental projects, developed to less rigorous quality and testing standards than the mainline Flocker distribution. It is not built with production-readiness in mind.</p>
-	</div>
+        </div>
 
 For some environments, such as CoreOS, and ECS you must install Flocker inside a container.
 
 You can find the relevant Docker Hub images here:
 
 * `Dataset Agent <https://hub.docker.com/r/clusterhq/flocker-dataset-agent/>`_
-* `Container Agent <https://hub.docker.com/r/clusterhq/flocker-container-agent/>`_ (deprecated - see note below)
 * `Control Service <https://hub.docker.com/r/clusterhq/flocker-control-service/>`_
 * `Docker Plugin <https://hub.docker.com/r/clusterhq/flocker-dockerplugin/builds/>`_
-
-.. note:: The Container Agent should only be used if you intend on using the :ref:`deprecated container API <deprecated-endpoints>`.
-   If you are using the Docker CLI, or any other cluster manager, it is not required.
 
 Before you install Flocker in containers, you must have generated the cluster certificate and key, any node certificates and keys, and API certificates and keys for the Docker plugin.
 
@@ -43,7 +39,7 @@ Use the following steps to install Flocker using Docker containers:
      .. prompt:: bash $
 
         docker run --name=flocker-control-volume -v /var/lib/flocker clusterhq/flocker-control-service true
-	 
+
    * Run the following command on the same host to start the control-service:
 
      .. prompt:: bash $
@@ -51,10 +47,6 @@ Use the following steps to install Flocker using Docker containers:
         docker run --restart=always -d --net=host -v /etc/flocker:/etc/flocker --volumes-from=flocker-control-volume --name=flocker-control-service clusterhq/flocker-control-service
 
 #. Run the following commands to enable the agent service:
-
-   .. prompt:: bash $
-
-      docker run --restart=always -d --net=host --privileged -v /etc/flocker:/etc/flocker -v /var/run/docker.sock:/var/run/docker.sock --name=flocker-container-agent clusterhq/flocker-container-agent
 
    .. prompt:: bash $
 
@@ -79,8 +71,6 @@ Here is an example of a Flocker node, running all the Flocker services in contai
     2c09fcb11e80        clusterhq/flocker-docker-plugin     "flocker-docker-plugi"   2 seconds ago       Up 1 seconds                                     flocker-docker-plugin
     47ee43d887d1        clusterhq/flocker-control-service   "/usr/sbin/flocker-co"   48 minutes ago      Up 48 minutes                                    flocker-control-service
     46710d9165f0        clusterhq/flocker-dataset-agent     "/tmp/wrap_dataset_ag"   51 minutes ago      Up 51 minutes                                    flocker-dataset-agent
-    e168c6f728a2        clusterhq/flocker-container-agent   "/usr/sbin/flocker-co"   53 minutes ago      Up 53 minutes                                    flocker-container-agent
-
 
 Logs
 ====
@@ -90,7 +80,6 @@ Run the following to get the logs of the Flocker services:
 .. prompt:: bash $
 
     docker logs flocker-control-service
-    docker logs flocker-container-agent
     docker logs flocker-dataset-agent
     docker logs flocker-docker-plugin
 

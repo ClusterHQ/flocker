@@ -252,12 +252,13 @@ common_cli:
     virtualenv -p python2.7 --clear ${venv}
     . ${venv}/bin/activate
     # Upgrade Python packaging tools.
-    ${venv}/bin/pip install pip==8.1.2 setuptools==23.0.0
+    ${venv}/bin/pip install pip==8.1.2 setuptools==23.0.0 tox==2.3.1
     # Report the versions to aid debugging.
     ${venv}/bin/python --version
     ${venv}/bin/pip --version
     ${venv}/bin/python \
         -c 'import setuptools; print "SETUPTOOLS_VERSION:", setuptools.__version__'
+    ${venv}/bin/tox --version
 
   setup_flocker_modules: &setup_flocker_modules |
     # installs all the required python modules as well as the flocker code.
@@ -573,7 +574,7 @@ common_cli:
     echo "RUN env URLGRABBER_DEBUG=1 yum install \
           --assumeyes epel-release" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum install --assumeyes \
-          git ruby-devel python-devel libffi-devel openssl-devel \
+          git ruby-devel python-devel libffi-devel openssl-devel enchant-devel \
           rpmlint" >> Dockerfile
     echo "RUN env URLGRABBER_DEBUG=1 yum update --assumeyes" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
@@ -586,19 +587,7 @@ common_cli:
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y git ruby-dev \
-          libffi-dev libssl-dev build-essential \
-          python2.7-dev lintian python" >> Dockerfile
-    echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
-    echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
-
-  build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
-    # don't waste time installing ruby or fpm, use an image containing fpm
-    # https://github.com/alanfranz/fpm-within-docker
-    echo "FROM alanfranz/fwd-ubuntu-wily:latest" > Dockerfile
-    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
-    echo "RUN apt-get update" >> Dockerfile
-    echo "RUN apt-get install --no-install-recommends -y \
-          git ruby-dev libffi-dev libssl-dev build-essential \
+          libffi-dev libssl-dev libenchant-dev build-essential \
           python2.7-dev lintian python" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
@@ -610,7 +599,7 @@ common_cli:
     echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y \
-          git ruby-dev libffi-dev libssl-dev build-essential \
+          git ruby-dev libffi-dev libssl-dev libenchant-dev build-essential \
           python2.7-dev lintian python" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
@@ -714,14 +703,7 @@ common_cli:
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
   run_lint: &run_lint |
-    # Disable exiting on error, so we can run multiple lints
-    set +e
-    # run flake8 lint tests on Flocker source code
-    flake8 --format=pylint --output flake8.lint.txt admin benchmark flocker
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    pylint admin benchmark flocker > pylint.lint.txt
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    set -e
+    tox -e lint > lint.txt
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -1161,24 +1143,6 @@ job_type:
       timeout: 30
       directories_to_delete: *run_acceptance_directories_to_delete
 
-    run_client_installation_on_Ubuntu_Wily:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=ubuntu-15.10',
-                   *check_version,
-                   *build_sdist, *build_package,
-                   *build_repo_metadata,
-                   *run_client_tests,
-                   *clean_packages,
-                   *exit_with_return_code_from_test ]
-          }
-      clean_repo: true
-      timeout: 30
-      directories_to_delete: *run_acceptance_directories_to_delete
-
     run_client_installation_on_Ubuntu_Xenial:
       on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
@@ -1224,12 +1188,11 @@ job_type:
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   *cleanup, *setup_venv,
                    *run_lint, *exit_with_return_code_from_test ]
           }
       timeout: 10
-      publish_lint: true
-      archive_artifacts: ["*.lint.txt"]
+      archive_artifacts: ["lint.txt"]
       directories_to_delete: []
 
   cronly_jobs:
@@ -1261,21 +1224,6 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
-
-    run_docker_build_ubuntu_wily_fpm:
-      at: '0 3 * * *'
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-wily',
-                   *build_dockerfile_ubuntu_wily,
-                   *build_docker_image,
-                   *push_image_to_dockerhub ]
-          }
-      timeout: 30
-      directories_to_delete: []
-      notify_slack: '#nightly-builds'
 
     run_docker_build_ubuntu_xenial_fpm:
       at: '0 3 * * *'
@@ -1731,9 +1679,6 @@ views:
   Ubuntu_Trusty_14_04_LTS:
     description: 'All Ubuntu Trusty LTS (14.04) jobs'
     regex: '.*_(?i)trusty_.*.*'
-  Ubuntu_Wily_15_10:
-    description: 'All Ubuntu Wily (15.10) jobs'
-    regex: '.*_(?i)wily_.*.*'
   Ubuntu_Xenial_16_04:
     description: 'All Ubuntu Xenial (16.04) jobs'
     regex: '.*_(?i)xenial_.*.*'

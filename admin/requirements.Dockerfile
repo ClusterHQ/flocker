@@ -6,16 +6,17 @@
 # temporary directory containing a copy of Flocker/requirements and the
 # entrypoint script.
 
-FROM quay.io/pypa/manylinux1_x86_64:latest
+FROM alpine:latest
 MAINTAINER ClusterHQ <contact@clusterhq.com>
+RUN apk add --update alpine-sdk py-pip git python-dev openssl-dev linux-headers libffi-dev enchant-dev
 COPY entrypoint /entrypoint
 RUN ["chmod", "+x", "/entrypoint"]
 # Some packages for compiling CFFI and cryptography
-RUN ["yum", "install", "-y", "libffi-devel", "openssl-devel"]
-RUN ["/opt/python/cp27-cp27m/bin/pip", "install", "pip==8.1.2"]
-COPY requirements/*.txt /requirements/
-RUN ["/opt/python/cp27-cp27m/bin/pip", "download",\
-     "--dest", "/downloads",\
+RUN ["/usr/bin/pip", "install", "--upgrade", "pip==8.1.2"]
+RUN ["/usr/bin/pip", "install", "wheel"]
+COPY requirements /requirements
+RUN ["/usr/bin/pip", "wheel",\
+     "--wheel-dir", "/wheelhouse",\
      "--constraint", "/requirements/constraints.txt",\
-     "--requirement", "/requirements/all.txt"]
+     "--requirement", "/requirements/all.txt.latest"]
 ENTRYPOINT ["/entrypoint"]

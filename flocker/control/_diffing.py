@@ -243,7 +243,7 @@ class _EvolverProxyForSet(object):
         return self
 
     def commit(self):
-        for segment, child_evolver_proxy in self._children.items():
+        for child_evolver_proxy in self._children.values():
             child = child_evolver_proxy.commit()
             self._evolver.add(child)
         return self._evolver.persistent()
