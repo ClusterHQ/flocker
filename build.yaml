@@ -545,7 +545,7 @@ common_cli:
     # See: https://github.com/docker/docker/issues/3313
     docker build --no-cache -t $DOCKER_IMAGE .
 
-  build_docker_image_flocker: &build_docker_image |
+  build_docker_image_flocker: &build_docker_image_flocker |
     # Build Flocker Docker image
     docker build \
         --rm \
