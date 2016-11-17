@@ -9,8 +9,7 @@ RUN \
         ca-certificates \
     && apt-get --yes clean
 
-ARG FLOCKER_VERSION
-RUN : ${FLOCKER_VERSION:?"Please supply FLOCKER_VERSION as --build-arg FLOCKER_VERSION=x.y.z"}
+ARG FLOCKER_VERSION="*"
 ARG FLOCKER_REPOSITORY="https://clusterhq-archive.s3.amazonaws.com/ubuntu/16.04/amd64"
 RUN echo "deb ${FLOCKER_REPOSITORY} /" > /etc/apt/sources.list.d/clusterhq.list
 RUN \

@@ -10,20 +10,18 @@ docker build \
     .
 ```
 
-You can also build a specific version of Flocker from a custom repository:
+You can also build the latest version of Flocker from a custom repository:
 
 ```
-export FLOCKER_VERSION=1.15.0-1.74.gd126599
 docker build \
     --rm
-    --tag "clusterhq/flocker-dataset-agent:${FLOCKER_VERSION}" \
-    --build-arg "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+    --tag "clusterhq/flocker-dataset-agent:master" \
     --build-arg "FLOCKER_REPOSITORY=http://build.clusterhq.com/results/omnibus/master/ubuntu-16.04/"
     .
 ```
 
 To check the image, run the container with the argument ```--version```:
 ```
-$ docker run --rm clusterhq/flocker-dataset-agent:$FLOCKER_VERSION --version
-1.15.0+74.gd126599
+$ docker run --rm clusterhq/flocker-dataset-agent:master --version
+1.15.0.post2+131.g156c7ca
 ```
