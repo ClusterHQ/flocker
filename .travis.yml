@@ -19,3 +19,8 @@ env:
 
 script:
   - tox -e $TOX_ENV
+
+addons:
+  apt:
+    packages:
+    - enchant
