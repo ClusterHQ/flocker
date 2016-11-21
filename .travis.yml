@@ -3,6 +3,8 @@
 # Run a subset of Flocker tests on Travis-CI.
 sudo: false
 
+dist: trusty
+
 language: python
 
 python: 2.7
