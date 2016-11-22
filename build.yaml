@@ -561,6 +561,22 @@ common_cli:
         dockerfiles/dataset
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
+
+  build_docker_image_flocker_control: &build_docker_image_flocker_control |
+    # Build Flocker Docker image
+    BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    docker build \
+        --rm \
+        --tag "${DOCKER_IMAGE}" \
+        --label "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+        --label "GIT_COMMIT=${GIT_COMMIT}" \
+        --label "TRIGGERED_BRANCH=${TRIGGERED_BRANCH}" \
+        --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
+        --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
+        dockerfiles/control
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
   # These are the docker images we will be using during our tests.
   # We build them every 24 hours, making sure we have the latest OS updates
   # installed on those images.
@@ -1175,6 +1191,9 @@ job_type:
                    *build_repo_metadata,
                    'export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent:${GIT_COMMIT}',
                    *build_docker_image_flocker,
+                   *push_image_to_dockerhub,
+                   'export DOCKER_IMAGE=clusterhqci/flocker-control:${GIT_COMMIT}',
+                   *build_docker_image_flocker_control,
                    *push_image_to_dockerhub,
                    *clean_packages,
                    *exit_with_return_code_from_test ]

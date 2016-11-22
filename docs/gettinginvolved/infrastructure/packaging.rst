@@ -120,6 +120,9 @@ Old versions of Flocker source and binary distributions are hosted on Google Clo
 Building Docker Images
 ======================
 
+flocker-dataset-agent
+---------------------
+
 To build the docker image for ``flocker-dataset-agent``, run:
 
 .. prompt:: bash $
@@ -146,3 +149,35 @@ To check the image, run the container with the argument ```--version```:
 .. prompt:: bash $
 
    docker run --rm clusterhq/flocker-dataset-agent:master --version
+
+To run the container:
+
+.. prompt:: bash $
+
+    docker run \
+        --net host \
+        --privileged \
+        --volume /flocker:/flocker:shared \
+        --volume /etc/flocker:/etc/flocker \
+        --volume /dev:/dev \
+        --detach \
+        clusterhqci/flocker-dataset-agent:master
+
+
+flocker-control
+---------------
+
+To run the ``flocker-control`` container:
+
+.. prompt:: bash $
+
+    docker run \
+        --name flocker-control \
+        --net host \
+        -p 4523:4523 \
+        -p 4524:4524 \
+        --volume /var/lib/flocker:/var/lib/flocker  \
+        --volume /etc/flocker:/etc/flocker \
+        --detach \
+        clusterhqci/flocker-control:master
+
