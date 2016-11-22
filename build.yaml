@@ -706,9 +706,6 @@ common_cli:
     [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --delete --acl public-read \
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
 
-  run_lint: &run_lint |
-    tox -e lint > lint.txt
-
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
 #-----------------------------------------------------------------------------#
@@ -1186,19 +1183,6 @@ job_type:
       timeout: 30
       directories_to_delete: *run_acceptance_directories_to_delete
 
-  run_lint:
-    run_lint:
-      on_nodes_with_labels: 'aws-centos-7-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv,
-                   *run_lint, *exit_with_return_code_from_test ]
-          }
-      timeout: 10
-      archive_artifacts: ["lint.txt"]
-      directories_to_delete: []
-
   cronly_jobs:
     run_docker_build_centos7_fpm:
       at: '0 0 * * *'
@@ -1656,9 +1640,6 @@ views:
   client:
     description: 'All client installation jobs'
     regex: 'run_(?i)client_.*.*'
-  code_quality:
-    description: 'All code quality jobs'
-    regex: 'run_(?i)lint.*.*'
   docs:
     description: 'Documentation jobs'
     regex: 'run_(?i)sphinx.*.*'
