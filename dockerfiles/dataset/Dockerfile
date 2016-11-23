@@ -18,4 +18,6 @@ RUN \
         clusterhq-python-flocker=${FLOCKER_VERSION} \
         clusterhq-flocker-node=${FLOCKER_VERSION}
 
+VOLUME /etc/flocker
+
 ENTRYPOINT ["/usr/sbin/flocker-dataset-agent"]

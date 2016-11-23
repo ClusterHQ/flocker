@@ -120,10 +120,13 @@ Old versions of Flocker source and binary distributions are hosted on Google Clo
 Building Docker Images
 ======================
 
+The Docker images: ``flocker-dataset`` and ``flocker-control`` are built automatically by our CI system.
+They are tagged with the Git revision hash and uploaded to https://hub.docker.com/r/clusterhqci.
+
 flocker-dataset-agent
 ---------------------
 
-To build the docker image for ``flocker-dataset-agent``, run:
+To build the Docker image for ``flocker-dataset-agent``, run:
 
 .. prompt:: bash $
 
@@ -158,7 +161,7 @@ To run the container:
         --net host \
         --privileged \
         --volume /flocker:/flocker:shared \
-        --volume /etc/flocker:/etc/flocker \
+        --volume /etc/flocker:/etc/flocker:ro \
         --volume /dev:/dev \
         --detach \
         clusterhqci/flocker-dataset-agent:master
@@ -166,6 +169,8 @@ To run the container:
 
 flocker-control
 ---------------
+
+The ``flocker-control`` Docker image is built using the same ```docker build ...``` command line as for ``flocker-dataset`` but substituting the ```control/Dockerfile```.
 
 To run the ``flocker-control`` container:
 
@@ -177,7 +182,7 @@ To run the ``flocker-control`` container:
         -p 4523:4523 \
         -p 4524:4524 \
         --volume /var/lib/flocker:/var/lib/flocker  \
-        --volume /etc/flocker:/etc/flocker \
+        --volume /etc/flocker:/etc/flocker:ro \
         --detach \
         clusterhqci/flocker-control:master
 

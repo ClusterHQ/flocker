@@ -18,7 +18,10 @@ RUN \
         clusterhq-python-flocker=${FLOCKER_VERSION} \
         clusterhq-flocker-node=${FLOCKER_VERSION}
 
+VOLUME /etc/flocker
+VOLUME /var/lib/flocker
+
 EXPOSE 4523
 EXPOSE 4524
 
-ENTRYPOINT ["/usr/sbin/flocker-control", "--port=tcp:4523", "--agent-port=tcp:4524", "--journald", "--certificates-directory=/etc/flocker", "--data-path=/var/lib/flocker"] 
+ENTRYPOINT ["/usr/sbin/flocker-control", "--port=tcp:4523", "--agent-port=tcp:4524", "--certificates-directory=/etc/flocker", "--data-path=/var/lib/flocker"] 
