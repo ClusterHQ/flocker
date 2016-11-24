@@ -77,3 +77,9 @@ jobs.groovy
 # Vagrant dev items
 Vagrantfile
 .vagrant/
+
+# Pants
+.pants.d
+dist
+.pids
+.pants.workdir.file_lock
