@@ -563,7 +563,7 @@ common_cli:
 
 
   build_docker_image_flocker_control: &build_docker_image_flocker_control |
-    # Build Flocker Docker image
+    # Build Flocker-control Docker image
     BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
     REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
     docker build \
@@ -575,6 +575,21 @@ common_cli:
         --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
         --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
         dockerfiles/control
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
+  build_docker_image_flocker_docker_plugin: &build_docker_image_flocker_docker_plugin |
+    # Build Flocker-docker-plugin Docker image
+    BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    docker build \
+        --rm \
+        --tag "${DOCKER_IMAGE}" \
+        --label "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+        --label "GIT_COMMIT=${GIT_COMMIT}" \
+        --label "TRIGGERED_BRANCH=${TRIGGERED_BRANCH}" \
+        --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
+        --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
+        dockerfiles/docker-plugin
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   # These are the docker images we will be using during our tests.
@@ -1194,6 +1209,9 @@ job_type:
                    *push_image_to_dockerhub,
                    'export DOCKER_IMAGE=clusterhqci/flocker-control:${GIT_COMMIT}',
                    *build_docker_image_flocker_control,
+                   *push_image_to_dockerhub,
+                   'export DOCKER_IMAGE=clusterhqci/flocker-docker-plugin:${GIT_COMMIT}',
+                   *build_docker_image_flocker_docker_plugin,
                    *push_image_to_dockerhub,
                    *clean_packages,
                    *exit_with_return_code_from_test ]
