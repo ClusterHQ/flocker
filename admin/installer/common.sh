@@ -2,7 +2,6 @@
 #
 # Shared helper functions.
 #
-# set -ex
 
 # Retry a command line until it succeeds.
 # With a delay between attempts and a limited number of attempts.
@@ -18,20 +17,19 @@ function retry_command () {
 
     while true; do
         count=$((count+1))
-        "${@}"
-        last_return_code=$?
-        if [[ "${last_return_code}" -eq 0 ]]; then
+        if "${@}"; then
             return 0
+        else
+            last_return_code=$?
         fi
+        echo "RETRY_COMMAND: command '${@}' failed with exit_code '${last_return_code}'" >&2
+        echo "RETRY_COMMAND: failure_count: ${count}"
         if [[ "${count}" -eq "${RETRY_COMMAND_RETRY_LIMIT}" ]]; then
             break
         fi
-
-        echo "RETRY_COMMAND: command '${@}' failed with exit_code '${last_return_code}'" >&2
-        echo "RETRY_COMMAND: failure_count: ${count}"
         echo "RETRY_COMMAND: sleeping for ${RETRY_COMMAND_SLEEP_INTERVAL}s" >&2
         sleep "${RETRY_COMMAND_SLEEP_INTERVAL}"
     done
-    echo "RETRY_COMMAND: stopping after '${RETRY_COMMAND_RETRY_LIMIT}' failed attempts" >&2
+    echo "RETRY_COMMAND: stopping after '${count}' failed attempts" >&2
     return ${last_return_code}
 }
