@@ -7,7 +7,7 @@
 # With a delay between attempts and a limited number of attempts.
 
 RETRY_COMMAND_SLEEP_INTERVAL=5
-RETRY_COMMAND_RETRY_LIMIT=5
+RETRY_COMMAND_RETRY_LIMIT=10
 
 function retry_command () {
     local count=0
