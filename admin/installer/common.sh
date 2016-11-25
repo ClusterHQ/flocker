@@ -2,6 +2,7 @@
 #
 # Shared helper functions.
 #
+set -ex
 
 # Retry a command line until it succeeds.
 # With a delay between attempts and a limited number of attempts.
