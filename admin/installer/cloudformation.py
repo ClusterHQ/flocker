@@ -272,7 +272,9 @@ def flocker_docker_template(cluster_size, client_ami_map, node_ami_map):
         'stack_name="', Ref("AWS::StackName"), '"\n',
         'volumehub_token="', Ref(volumehub_token), '"\n',
         'node_count="{}"\n'.format(cluster_size),
-        'apt-get update\n',
+        'set -ex\n',
+    ] + _sibling_lines("common.sh") + [
+        'retry_command apt-get update\n',
     ]
 
     # XXX Flocker agents are indexed from 1 while the nodes overall are indexed

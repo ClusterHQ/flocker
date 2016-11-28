@@ -35,7 +35,7 @@ POSTGRESQL_PORT = 5432
 POSTGRESQL_USERNAME = 'flocker'
 POSTGRESQL_PASSWORD = 'flocker'
 
-CLOUDFORMATION_TEMPLATE_URL = "https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.json"  # noqa
+CLOUDFORMATION_TEMPLATE_URL = "https://s3.amazonaws.com/installer.downloads.clusterhq.com/flocker-cluster.cloudformation.1.15.0.json"  # noqa
 
 
 def remote_command(client_ip, command):
