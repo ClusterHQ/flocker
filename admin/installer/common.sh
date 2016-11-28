@@ -24,7 +24,7 @@ function retry_command () {
             last_return_code=$?
         fi
         echo "RETRY_COMMAND: command '${@}' failed with exit_code '${last_return_code}'" >&2
-        echo "RETRY_COMMAND: failure_count: ${count}"
+        echo "RETRY_COMMAND: failure_count: ${count}" >&2
         if [[ "${count}" -eq "${RETRY_COMMAND_RETRY_LIMIT}" ]]; then
             break
         fi
