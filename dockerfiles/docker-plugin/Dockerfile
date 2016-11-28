@@ -20,4 +20,4 @@ RUN \
 
 VOLUME /etc/flocker
 
-ENTRYPOINT ["/opt/flocker/bin/flocker-docker-plugin", "--rest-api-port=4523"] 
+ENTRYPOINT ["/opt/flocker/bin/flocker-docker-plugin", "--agent-config=/etc/flocker/agent.yml"]
