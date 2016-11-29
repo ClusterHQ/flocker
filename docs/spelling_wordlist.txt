@@ -5,6 +5,8 @@ authorised
 backend
 backends
 behaviour
+benchmarked
+benchmarking
 blog
 Btrfs
 bugfix
@@ -43,6 +45,7 @@ Freenode
 GlusterFS
 handoff
 handoffs
+Hedvig
 hoc
 Homebrew
 hostname
@@ -58,6 +61,7 @@ invalidations
 IPv
 iSCSI
 IPv4
+Isolator
 journald
 js
 keychain
@@ -71,6 +75,8 @@ metadata
 MiB
 microservice
 microservices
+misconfiguration
+misconfigured
 Moby
 mountpoint
 multi
@@ -79,6 +85,7 @@ namespace
 NAT'd
 Nexenta
 NexentaEdge
+NFS
 Node.js
 ok
 online
@@ -105,8 +112,12 @@ resize
 rkt
 roadmap
 routable
+runtime
+Saratoga
+scalability
 screenshot
 snapshotting
+startup
 stateful
 sysadmin
 syslog
