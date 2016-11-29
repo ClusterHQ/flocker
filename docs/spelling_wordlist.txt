@@ -60,6 +60,7 @@ iSCSI
 IPv4
 journald
 js
+Kaminario
 keychain
 keypair
 Kubernetes
