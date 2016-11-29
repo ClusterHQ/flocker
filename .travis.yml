@@ -21,6 +21,10 @@ env:
   - TOX_ENV=docs-linkcheck
   - TOX_ENV=docs-html
 
+matrix:
+  allow_failures:
+  - env: TOX_ENV=docs-linkcheck
+
 script:
   - tox -e $TOX_ENV
 
