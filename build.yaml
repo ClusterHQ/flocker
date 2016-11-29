@@ -546,6 +546,37 @@ common_cli:
     # See: https://github.com/docker/docker/issues/3313
     docker build --no-cache -t $DOCKER_IMAGE .
 
+  build_docker_image_flocker: &build_docker_image_flocker |
+    # Build Flocker Docker image
+    BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    docker build \
+        --rm \
+        --tag "${DOCKER_IMAGE}" \
+        --label "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+        --label "GIT_COMMIT=${GIT_COMMIT}" \
+        --label "TRIGGERED_BRANCH=${TRIGGERED_BRANCH}" \
+        --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
+        --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
+        dockerfiles/dataset
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
+
+  build_docker_image_flocker_control: &build_docker_image_flocker_control |
+    # Build Flocker Docker image
+    BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    docker build \
+        --rm \
+        --tag "${DOCKER_IMAGE}" \
+        --label "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+        --label "GIT_COMMIT=${GIT_COMMIT}" \
+        --label "TRIGGERED_BRANCH=${TRIGGERED_BRANCH}" \
+        --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
+        --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
+        dockerfiles/control
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
   # These are the docker images we will be using during our tests.
   # We build them every 24 hours, making sure we have the latest OS updates
   # installed on those images.
@@ -690,9 +721,6 @@ common_cli:
     # ensure master docs at doc-dev are up-to-date
     [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --delete --acl public-read \
       s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
-
-  run_lint: &run_lint |
-    tox -e lint | tee lint.txt
 
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
@@ -1125,18 +1153,29 @@ job_type:
       timeout: 30
       directories_to_delete: *run_acceptance_directories_to_delete
 
-  run_lint:
-    run_lint:
-      on_nodes_with_labels: 'aws-centos-7-T2Medium'
+  run_docker_build:
+    run_docker_build_on_Ubuntu_Xenial:
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv,
-                   *run_lint, *exit_with_return_code_from_test ]
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   'export DISTRIBUTION_NAME=ubuntu-16.04',
+                   *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   'export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent:${GIT_COMMIT}',
+                   *build_docker_image_flocker,
+                   *push_image_to_dockerhub,
+                   'export DOCKER_IMAGE=clusterhqci/flocker-control:${GIT_COMMIT}',
+                   *build_docker_image_flocker_control,
+                   *push_image_to_dockerhub,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
           }
-      timeout: 10
-      archive_artifacts: ["lint.txt"]
-      directories_to_delete: []
+      clean_repo: true
+      timeout: 30
+      directories_to_delete: *run_acceptance_directories_to_delete
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
@@ -1507,9 +1546,6 @@ views:
   client:
     description: 'All client installation jobs'
     regex: 'run_(?i)client_.*.*'
-  code_quality:
-    description: 'All code quality jobs'
-    regex: 'run_(?i)lint.*.*'
   docs:
     description: 'Documentation jobs'
     regex: 'run_(?i)sphinx.*.*'

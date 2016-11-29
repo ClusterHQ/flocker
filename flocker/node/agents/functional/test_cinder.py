@@ -1155,7 +1155,7 @@ def webserver_for_test(test, url_path, response_content):
     app = Klein()
 
     @app.route(url_path)
-    def respond(request):
+    def _respond(request):
         return response_content
     factory = Site(app.resource())
     endpoint = serverFromString(reactor, b"tcp:0")
