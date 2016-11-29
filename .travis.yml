@@ -1,0 +1,26 @@
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+#
+# Run a subset of Flocker tests on Travis-CI.
+sudo: false
+
+dist: trusty
+
+language: python
+
+python: 2.7
+
+cache: pip
+
+install:
+  - pip install tox
+
+env:
+  - TOX_ENV=lint
+
+script:
+  - tox -e $TOX_ENV
+
+addons:
+  apt:
+    packages:
+    - python-enchant

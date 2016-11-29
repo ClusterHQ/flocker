@@ -12,13 +12,10 @@ access_key = ${access_key_id}
 secret_key = ${secret_access_key}
 EOF
 
-apt-get -y install s3cmd
+retry_command apt-get --yes install s3cmd
 
 # Wrapper around S3 command to allow retry until
 # bucket of interest is available and populated.
-s3cmd_wrapper ()
-{
-    while ! /usr/bin/s3cmd --force $@; do
-        sleep 5
-    done
+s3cmd_wrapper () {
+    retry_command /usr/bin/s3cmd --force $@
 }

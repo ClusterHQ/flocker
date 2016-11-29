@@ -9,8 +9,7 @@ UBUNTU_HOME="/home/ubuntu"
 SUCCESS_SIGNAL_URL="http://check.clusterhq.com/cloudformation-complete.txt"
 
 # Get Postgres image.
-apt-get update
-sudo apt-get install -y postgresql-client
+retry_command apt-get install -y postgresql-client
 
 # Get docker-compose.
 curl -L https://github.com/docker/compose/releases/download/1.7.1/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
@@ -30,7 +29,7 @@ s3cmd_wrapper get --force --config=/root/.s3cfg s3://${s3_bucket}/docker-swarm-t
 PASSPHRASE=`eval cat ${DOCKER_CERT_HOME}/passphrase.txt`
 
 # Get expect to autofill openssl inputs.
-sudo apt-get install -y expect
+retry_command apt-get install -y expect
 
 # Generate Docker Swarm client certificates.
 pushd ${DOCKER_CERT_HOME}
