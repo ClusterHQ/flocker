@@ -23,6 +23,7 @@ env:
 
 matrix:
   allow_failures:
+  - env: TOX_ENV=docs-lint
   - env: TOX_ENV=docs-linkcheck
 
 script:
