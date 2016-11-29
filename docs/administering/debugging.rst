@@ -195,7 +195,7 @@ Profiling
 Flocker Control Service
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-It is possible to obtain ``cProfile`` profiling data of the :ref:`control-service` between two user defined intervals.
+It is possible to obtain :py:mod:`cProfile` profiling data of the :ref:`control-service` between two user defined intervals.
 
 Profiling is disabled by default.
 To enable profiling of the control service run the following command as root on the control node:
