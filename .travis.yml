@@ -16,6 +16,10 @@ install:
 
 env:
   - TOX_ENV=lint
+  - TOX_ENV=docs-lint
+  - TOX_ENV=docs-spelling
+  - TOX_ENV=docs-linkcheck
+  - TOX_ENV=docs-html
 
 script:
   - tox -e $TOX_ENV
