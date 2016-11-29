@@ -15,19 +15,19 @@ install:
   - pip install tox
 
 env:
-  - TOX_ENV=lint
-  - TOX_ENV=docs-lint
-  - TOX_ENV=docs-spelling
-  - TOX_ENV=docs-linkcheck
-  - TOX_ENV=docs-html
+  - FLOCKER_BUILDER=lint
+  - FLOCKER_BUILDER=docs-lint
+  - FLOCKER_BUILDER=docs-spelling
+  - FLOCKER_BUILDER=docs-linkcheck
+  - FLOCKER_BUILDER=docs-html
 
 matrix:
   allow_failures:
-  - env: TOX_ENV=docs-lint
-  - env: TOX_ENV=docs-linkcheck
+  - env: FLOCKER_BUILDER=docs-lint
+  - env: FLOCKER_BUILDER=docs-linkcheck
 
 script:
-  - tox -e $TOX_ENV
+  - $TRAVIS_BUILD_DIR/.travis/script
 
 addons:
   apt:
