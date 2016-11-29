@@ -69,6 +69,7 @@ keypair
 Kubernetes
 libswarm
 lifecycle
+Lookup
 loopback
 Mesos
 metadata
