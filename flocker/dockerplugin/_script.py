@@ -31,7 +31,7 @@ class DockerPluginOptions(Options):
     """
     optParameters = [
         ["rest-api-port", "p", REST_API_PORT,
-         "Port to connect to for control service REST API."],
+         "Port to connect to for control service REST API.", int],
         ["agent-config", "c", "/etc/flocker/agent.yml",
          "The configuration file for the local agent."],
     ]
