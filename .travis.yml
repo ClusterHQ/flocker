@@ -9,10 +9,12 @@ language: python
 
 python: 2.7
 
-cache: pip
+cache:
+  pip: true
+  apt: true
 
 install:
-  - pip install tox
+  - pip install tox awscli
 
 env:
   - FLOCKER_BUILDER=lint
@@ -27,7 +29,10 @@ matrix:
   - env: FLOCKER_BUILDER=docs-linkcheck
 
 script:
-  - $TRAVIS_BUILD_DIR/.travis/script
+  - .travis/script
+
+after_script:
+  - .travis/after_script
 
 addons:
   apt:
