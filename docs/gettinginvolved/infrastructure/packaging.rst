@@ -133,9 +133,9 @@ To build the Docker image for ``flocker-dataset-agent``, run:
    export FLOCKER_VERSION=1.15.0
    docker build \
        --rm \
-       --tag "clusterhq/flocker-dataset-agent:${FLOCKER_VERSION}" \
+       --tag "clusterhqci/flocker-dataset-agent:${FLOCKER_VERSION}" \
        --build-arg "FLOCKER_VERSION=${FLOCKER_VERSION}-1" \
-       .
+       dockerfiles/dataset
 
 You can also build the latest version of Flocker from a custom repository:
 
@@ -143,9 +143,9 @@ You can also build the latest version of Flocker from a custom repository:
 
    docker build \
        --rm \
-       --tag "clusterhq/flocker-dataset-agent:master" \
+       --tag "clusterhqci/flocker-dataset-agent:master" \
        --build-arg "FLOCKER_REPOSITORY=http://build.clusterhq.com/results/omnibus/master/ubuntu-16.04/" \
-       .
+       dockerfiles/dataset
 
 To check the image, run the container with the argument ```--version```:
 
@@ -170,7 +170,7 @@ To run the container:
 flocker-control
 ---------------
 
-The ``flocker-control`` Docker image is built using the same ```docker build ...``` command line as for ``flocker-dataset`` but substituting the ```control/Dockerfile```.
+The ``flocker-control`` Docker image is built using the same ``docker build ...`` command line as for ``flocker-dataset-agent`` but substituting the ``control``.
 
 To run the ``flocker-control`` container:
 
@@ -185,4 +185,22 @@ To run the ``flocker-control`` container:
         --volume /etc/flocker:/etc/flocker:ro \
         --detach \
         clusterhqci/flocker-control:master
+
+flocker-docker-plugin
+--------------------
+
+The ``flocker-docker-plugin`` Docker image is built using the same ``docker build ...`` command line as for ``flocker-dataset-agent`` but substituting the ``docker-plugin``.
+
+To run the ``flocker-docker-plugin`` container:
+
+.. prompt:: bash $
+
+    docker run \
+        --name flocker-docker-plugin \
+        --net host \
+        --volume /etc/flocker:/etc/flocker:ro \
+        --detach \
+        clusterhqci/flocker-docker-plugin:master \
+        --rest-api-port=4523
+
 
