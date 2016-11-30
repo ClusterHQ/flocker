@@ -24,6 +24,10 @@ def docs(build_type):
     return tox("docs-" + build_type)
 
 
+def lint():
+    return tox("lint")
+
+
 def acceptance(provider, distribution, dataset_backend):
     build_dir = "/".join([
         os.environ["TRAVIS_BUILD_DIR"],
@@ -47,7 +51,7 @@ def acceptance(provider, distribution, dataset_backend):
 main = BuildHandler(
     handlers={
         "acceptance": acceptance,
-        "lint": tox,
+        "lint": lint,
         "docs": docs,
     }
 ).main

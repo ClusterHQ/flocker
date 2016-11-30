@@ -46,6 +46,9 @@ def publish_staging_docs():
 
 
 def archive_artifacts(*ignored):
+    """
+    Archive everything in the `build/` directory to S3.
+    """
     check_call([
         "aws", "s3", "sync",
         "build",
