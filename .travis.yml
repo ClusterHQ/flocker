@@ -17,6 +17,8 @@ before_install:
   - openssl aes-256-cbc -K $encrypted_02804a7cf34b_key -iv $encrypted_02804a7cf34b_iv -in .travis/secrets/acceptance.yml.enc -out .travis/secrets/acceptance.yml -d
 
 install:
+  - pip install --requirement requirements/flocker.txt
+  - pip install --requirement requirements/admin.txt
   - pip install tox awscli
 
 env:
