@@ -28,6 +28,9 @@ install:
   - pip install --requirement requirements/flocker.txt
   - pip install --requirement requirements/admin.txt
   - pip install tox awscli
+  # Install Flocker itself so that run-acceptance-tests has access to flocker-ca
+  # command
+  - pip install .
 
 env:
   - FLOCKER_BUILDER=acceptance:aws:centos-7:aws
