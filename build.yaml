@@ -328,22 +328,6 @@ common_cli:
     cat trial.log | subunit-1to2 | subunit2junitxml \
       --no-passthrough --output-to=results.xml
 
-  run_sphinx: &run_sphinx |
-    ${venv}/bin/python setup.py --version
-    cd docs
-    # check spelling
-    ${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
-    # build html pages
-    ${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
-
-  # Link checking relies on external services, and is
-  # fairly flaky. Split it out and run it nighty
-  run_sphinx_link_check: &run_sphinx_link_check |
-    ${venv}/bin/python setup.py --version
-    cd docs
-    # check links
-    ${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
-
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
   flocker_artifacts: &flocker_artifacts
@@ -706,37 +690,6 @@ common_cli:
       vagrant ssh -c "rm -f ${item}"
     done
 
-  install_aws_cli: &install_aws_cli |
-    # installs the AWS python based cli
-    # we use the aws cli to upload the docs files to S3
-    pip install awscli
-
-  get_s3_creds_for_bucket_staging_docs: &get_s3_creds_for_bucket_staging_docs |
-    # collects the S3 credentials that allows us to upload files to the S3
-    # staging bucket for our docs.
-    # the file with the credentials are deployed by the jenkins master to the
-    # /tmp of the slave when the slave is instantiated.
-    . /tmp/s3_staging_docs_clusterhq_com.sh
-
-  get_s3_creds_for_bucket_vagrant_jenkins_boxes: &get_s3_creds_for_bucket_vagrant_jenkins_boxes |
-    # collects the S3 credentials that allows us to upload files to the S3
-    # vagrant-jenkins_boxes for our vagrant boxes
-    # the file with the credentials is deployed by the jenkins master to the
-    # /tmp of the slave when the slave is instantiated.
-    . /tmp/s3_vagrant_jenkins_boxes_clusterhq.com
-
-  upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
-    # uploads the new generated html to a folder on the S3 staging-docs bucket
-    cd _build/html
-    aws --region ${S3_DOCS_REGION} s3 sync --delete . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
-    echo "This branch is available at :"
-    echo "http://clusterhq-staging-docs.s3-website-us-east-1.amazonaws.com/$TRIGGERED_BRANCH/"
-
-  sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
-    # ensure master docs at doc-dev are up-to-date
-    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --delete --acl public-read \
-      s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
-
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
 #-----------------------------------------------------------------------------#
@@ -744,7 +697,6 @@ common_cli:
 #
 # * run_trial
 # * run_trial_for_storage_driver (ebs/cinder)
-# * run_sphinx (old docs job)
 # * run_acceptance (tests)
 # * cronly_jobs (builds docker images every 24 hours)
 #
@@ -1061,23 +1013,6 @@ job_type:
       # applies here as well.
       timeout: 90
       directories_to_delete: *run_trial_directories_to_delete
-
-  # http://build.clusterhq.com/builders/flocker-docs
-  run_sphinx:
-    run_sphinx:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   *install_aws_cli, *run_sphinx,
-                   *get_s3_creds_for_bucket_staging_docs,
-                   *upload_new_docs_html_to_s3_staging_docs,
-                   *sync_master_docs_to_doc_dev ]
-          }
-      timeout: 10
-      archive_artifacts: ["docs/_build/spelling/output.txt"]
-      directories_to_delete: []
 
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
@@ -1592,19 +1527,6 @@ job_type:
       directories_to_delete: []
       notify_slack: '#nightly-builds'
 
-    run_sphinx_link_check:
-      at: '0 8 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   *run_sphinx_link_check ]
-          }
-      timeout: 10
-      archive_artifacts: ["docs/_build/linkcheck/output.txt"]
-      notify_slack: '#nightly-builds'
-
     cleanup_cloud_resources:
       at: '0 8 * * *'
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
@@ -1677,9 +1599,6 @@ views:
   client:
     description: 'All client installation jobs'
     regex: 'run_(?i)client_.*.*'
-  docs:
-    description: 'Documentation jobs'
-    regex: 'run_(?i)sphinx.*.*'
   cinder:
     description: 'cinder jobs'
     regex: '.*_(?i)cinder_.*.*'
