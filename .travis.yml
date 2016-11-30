@@ -15,12 +15,11 @@ cache:
 
 before_install:
   # See ClusterHQ/segredos/ci-platform/all/acceptance.yaml
+  # Includes the private SSH key used by `run-acceptance-tests` to log into and
+  # provision acceptance test nodes.
   - openssl aes-256-cbc -K $encrypted_02804a7cf34b_key -iv $encrypted_02804a7cf34b_iv
-    -in .travis/secrets/acceptance.yml.enc -out .travis/secrets/acceptance.yml -d
-  # The private SSH key used by `run-acceptance-tests` to log into and provision
-  # acceptance test nodes.
-  - openssl aes-256-cbc -K $encrypted_02804a7cf34b_key -iv $encrypted_02804a7cf34b_iv
-    -in .travis/secrets/id_rsa_vagrant_buildbot.enc -out .travis/secrets/id_rsa_vagrant_buildbot -d
+    -in .travis/secrets.tgz.enc -out .travis/secrets.tgz -d
+  - tar --verbose --extract --file .travis/secrets.tgz
   - eval "$(ssh-agent -s)"
   - chmod 600 .travis/secrets/id_rsa_vagrant_buildbot
   - ssh-add .travis/secrets/id_rsa_vagrant_buildbot

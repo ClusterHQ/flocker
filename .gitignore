@@ -79,4 +79,4 @@ Vagrantfile
 .vagrant/
 
 # Travis-CI encrypted files
-.travis/secrets/
+.travis/secrets*
