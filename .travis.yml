@@ -37,8 +37,8 @@ install:
 
 env:
   - FLOCKER_BUILDER=acceptance:aws:centos-7:aws
-  - FLOCKER_BUILDER=acceptance:aws:ubuntu-1604:aws
-  - FLOCKER_BUILDER=acceptance:aws:ubuntu-1404:aws
+  - FLOCKER_BUILDER=acceptance:aws:ubuntu-16.04:aws
+  - FLOCKER_BUILDER=acceptance:aws:ubuntu-14.04:aws
   - FLOCKER_BUILDER=lint
   - FLOCKER_BUILDER=docs:lint
   - FLOCKER_BUILDER=docs:spelling
