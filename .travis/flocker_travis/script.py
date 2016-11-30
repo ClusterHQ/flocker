@@ -25,10 +25,14 @@ def docs(build_type):
 
 
 def acceptance(provider, distribution, dataset_backend):
-    build_dir = "build/" + os.environ["FLOCKER_BUILDER"]
+    build_dir = "/".join([
+        os.environ["TRAVIS_BUILD_DIR"],
+        "build",
+        os.environ["FLOCKER_BUILDER"]
+    ])
     os.makedirs(build_dir)
     command = [
-        "admin/run-acceptance-tests",
+        os.environ["TRAVIS_BUILD_DIR"] + "/admin/run-acceptance-tests",
         "--provider", provider,
         "--distribution", distribution,
         "--dataset-backend", dataset_backend,

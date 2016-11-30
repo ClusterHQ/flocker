@@ -12,7 +12,7 @@ Set ``FLOCKER_BUILDER`` environment variable before calling this script.
 """
 
 from os import environ
-from subprocess import call
+from subprocess import call, check_call
 import sys
 
 from .common import BuildHandler
@@ -46,12 +46,12 @@ def publish_staging_docs():
 
 
 def archive_artifacts(*ignored):
-    return call([
+    check_call([
         "aws", "s3", "sync",
-        "build/",
+        "build",
         "/".join([
             "s3://clusterhq-flocker-build-artifacts",
-            unicode(environ["TRAVIS_BUILD_NUMBER"]),
+            environ["TRAVIS_BUILD_NUMBER"],
         ])
     ])
 
