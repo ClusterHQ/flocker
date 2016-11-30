@@ -26,6 +26,7 @@ before_install:
 
 install:
   - pip install --requirement requirements/flocker.txt
+  - pip install --requirement requirements/flocker-dev.txt
   - pip install --requirement requirements/admin.txt
   - pip install tox awscli
   # Install Flocker itself so that run-acceptance-tests has access to flocker-ca
