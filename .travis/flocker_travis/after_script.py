@@ -50,8 +50,10 @@ def archive_artifacts(*ignored):
         "aws", "s3", "sync",
         "build",
         "/".join([
-            "s3://clusterhq-flocker-build-artifacts",
+            # XXX Using this because the Jenkins S3 user has access to it.
+            "s3://clusterhq-dev-archive/flocker/artifacts",
             environ["TRAVIS_BUILD_NUMBER"],
+
         ])
     ])
 

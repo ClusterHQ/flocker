@@ -36,7 +36,8 @@ def acceptance(provider, distribution, dataset_backend):
         "--provider", provider,
         "--distribution", distribution,
         "--dataset-backend", dataset_backend,
-        "--config-file", ".travis/secrets/acceptance.yml"
+        "--config-file",
+        os.environ["TRAVIS_BUILD_DIR"] + "/.travis/secrets/acceptance.yml",
         "--",
         "flocker.acceptance.endtoend.test_diagnostics",
     ]
