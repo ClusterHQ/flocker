@@ -77,3 +77,6 @@ jobs.groovy
 # Vagrant dev items
 Vagrantfile
 .vagrant/
+
+# Travis-CI encrypted files
+.travis/secrets/
