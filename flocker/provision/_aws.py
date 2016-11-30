@@ -80,7 +80,7 @@ def _enable_boto_logging():
     logger.setLevel(logging.DEBUG)
     logger.addHandler(EliotLogHandler())
 
-_enable_boto_logging()
+# _enable_boto_logging()
 
 
 class FailedToRun(Exception):
