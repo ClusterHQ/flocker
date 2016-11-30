@@ -61,7 +61,7 @@ def get_handler(build_label):
 def main():
     build_label = environ["FLOCKER_BUILDER"]
     handler = get_handler(build_label)
-    handler()
+    return handler()
 
 if __name__ == "__main__":
     raise SystemExit(main())
