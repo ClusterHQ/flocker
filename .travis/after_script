@@ -43,7 +43,7 @@ def publish_staging_docs(build_directory):
 
 
 HANDLERS = {
-    "docs-html": publish_staging_docs,
+    "docs:html": publish_staging_docs,
 }
 
 

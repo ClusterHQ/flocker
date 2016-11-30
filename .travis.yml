@@ -20,11 +20,14 @@ install:
   - pip install tox awscli
 
 env:
+  - FLOCKER_BUILDER=acceptance:aws:centos-7:aws
+  - FLOCKER_BUILDER=acceptance:aws:ubuntu-1604:aws
+  - FLOCKER_BUILDER=acceptance-aws:ubuntu-1404:aws
   - FLOCKER_BUILDER=lint
-  - FLOCKER_BUILDER=docs-lint
-  - FLOCKER_BUILDER=docs-spelling
-  - FLOCKER_BUILDER=docs-linkcheck
-  - FLOCKER_BUILDER=docs-html
+  - FLOCKER_BUILDER=docs:lint
+  - FLOCKER_BUILDER=docs:spelling
+  - FLOCKER_BUILDER=docs:linkcheck
+  - FLOCKER_BUILDER=docs:html
 
 matrix:
   allow_failures:

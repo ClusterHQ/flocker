@@ -11,6 +11,7 @@ Travis calls this during the `script` phase of its build lifecycle.
 Set ``FLOCKER_BUILDER`` environment variable before calling this script.
 """
 
+from functools import partial
 from os import environ
 from subprocess import call
 
@@ -19,19 +20,48 @@ def tox(tox_env):
     return call(["tox", "-e", tox_env])
 
 
-BUILDERS = {
+def docs(build_type):
+    return tox("docs-" + build_type)
+
+
+def acceptance(provider, distribution, dataset_backend):
+    command = [
+        "admin/run-acceptance-tests",
+        "--provider", provider,
+        "--distribution", distribution,
+        "--dataset-backend", dataset_backend,
+        "--config-file", ".travis/secrets/acceptance.yml"
+    ]
+    return call(command)
+
+HANDLERS = {
+    "acceptance": acceptance,
     "lint": tox,
-    "docs-lint": tox,
-    "docs-spelling": tox,
-    "docs-linkcheck": tox,
-    "docs-html": tox,
+    "docs": docs,
 }
 
 
+def get_handler(build_label):
+    arguments = []
+    parts = build_label.split(":")
+    while parts:
+        key = ":".join(parts)
+        handler = HANDLERS.get(key)
+        if handler:
+            break
+        arguments.append(
+            parts.pop()
+        )
+    else:
+        raise KeyError("Handler not found", build_label, HANDLERS)
+
+    return partial(handler, *arguments)
+
+
 def main():
-    builder_name = environ["FLOCKER_BUILDER"]
-    builder = BUILDERS[builder_name]
-    return builder(builder_name)
+    build_label = environ["FLOCKER_BUILDER"]
+    handler = get_handler(build_label)
+    handler()
 
 if __name__ == "__main__":
     raise SystemExit(main())
