@@ -10,10 +10,10 @@ Travis calls this during the `script` phase of its build lifecycle.
 
 Set ``FLOCKER_BUILDER`` environment variable before calling this script.
 """
-
-from functools import partial
-from os import environ
+import os
 from subprocess import call
+
+from .common import BuildHandler
 
 
 def tox(tox_env):
@@ -25,43 +25,24 @@ def docs(build_type):
 
 
 def acceptance(provider, distribution, dataset_backend):
+    build_dir = "build/" + os.environ["FLOCKER_BUILDER"]
+    os.makedirs(build_dir)
     command = [
         "admin/run-acceptance-tests",
         "--provider", provider,
         "--distribution", distribution,
         "--dataset-backend", dataset_backend,
         "--config-file", ".travis/secrets/acceptance.yml"
+        "--",
+        "flocker.acceptance.endtoend.test_diagnostics",
     ]
-    return call(command)
-
-HANDLERS = {
-    "acceptance": acceptance,
-    "lint": tox,
-    "docs": docs,
-}
+    return call(command, cwd=build_dir)
 
 
-def get_handler(build_label):
-    arguments = []
-    parts = build_label.split(":")
-    while parts:
-        key = ":".join(parts)
-        handler = HANDLERS.get(key)
-        if handler:
-            break
-        arguments.append(
-            parts.pop()
-        )
-    else:
-        raise KeyError("Handler not found", build_label, HANDLERS)
-
-    return partial(handler, *arguments)
-
-
-def main():
-    build_label = environ["FLOCKER_BUILDER"]
-    handler = get_handler(build_label)
-    return handler()
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+main = BuildHandler(
+    handlers={
+        "acceptance": acceptance,
+        "lint": tox,
+        "docs": docs,
+    }
+).main

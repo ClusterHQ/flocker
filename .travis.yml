@@ -29,14 +29,16 @@ install:
   - pip install --requirement requirements/flocker-dev.txt
   - pip install --requirement requirements/admin.txt
   - pip install tox awscli
+  # Install some Flocker specific Travis-CI tools.
+  - pip install .travis
   # Install Flocker itself so that run-acceptance-tests has access to flocker-ca
   # command
   - pip install .
 
 env:
   - FLOCKER_BUILDER=acceptance:aws:centos-7:aws
-  - FLOCKER_BUILDER=acceptance:aws:ubuntu-1604:aws
-  - FLOCKER_BUILDER=acceptance:aws:ubuntu-1404:aws
+  # - FLOCKER_BUILDER=acceptance:aws:ubuntu-1604:aws
+  # - FLOCKER_BUILDER=acceptance:aws:ubuntu-1404:aws
   - FLOCKER_BUILDER=lint
   - FLOCKER_BUILDER=docs:lint
   - FLOCKER_BUILDER=docs:spelling
@@ -49,10 +51,10 @@ matrix:
   - env: FLOCKER_BUILDER=docs:linkcheck
 
 script:
-  - .travis/script
+  - flocker-travis-script
 
 after_script:
-  - .travis/after_script
+  - flocker-travis-after-script
 
 addons:
   apt:
