@@ -1,6 +1,7 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 from twisted.python.filepath import FilePath
+from twisted.python.usage import UsageError
 
 from ..script import ControlOptions, ControlScript
 from ...testtools import (
@@ -34,6 +35,29 @@ class ControlOptionsTests(make_standard_options_test(ControlOptions)):
         options = ControlOptions()
         options.parseOptions([b"--port", b"tcp:1234"])
         self.assertEqual(options["port"], b"tcp:1234")
+
+    def test_configuration_store_plugin_default(self):
+        """
+        The default --configuration-store-plugin is ``directory``.
+        """
+        options = ControlOptions()
+        options.parseOptions([])
+        self.assertEqual(
+            "directory",
+            options["configuration-store-plugin"].name
+        )
+
+    def test_configuration_store_plugin_unknown(self):
+        """
+        ``--configuration-store-plugin`` raises ``UsageError`` if the supplied
+          plugin name is not recognized.
+        """
+        options = ControlOptions()
+        self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            ["--configuration-store-plugin=bad-plugin-name"]
+        )
 
     def test_default_path(self):
         """
