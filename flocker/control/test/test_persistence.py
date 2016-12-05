@@ -36,6 +36,10 @@ from .._persistence import (
     _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE,
     _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json, generation_hash
     )
+from ..configuration_store.directory import DirectoryConfigurationStore
+from ..configuration_store.testtools import (
+    MemoryConfigurationStore,
+)
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
     AttachedVolume, SERIALIZABLE_CLASSES, NodeState, Configuration,
@@ -93,7 +97,9 @@ class LeasesTests(AsyncTestCase):
         super(LeasesTests, self).setUp()
         self.clock = Clock()
         self.persistence_service = ConfigurationPersistenceService(
-            self.clock, FilePath(self.mktemp()))
+            reactor=self.clock,
+            store=MemoryConfigurationStore()
+        )
         self.persistence_service.startService()
         self.addCleanup(self.persistence_service.stopService)
 
@@ -213,7 +219,16 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
 
         :return: Started ``ConfigurationPersistenceService``.
         """
-        service = ConfigurationPersistenceService(reactor, path)
+        store = DirectoryConfigurationStore(
+            directory=path
+        )
+        d = ConfigurationPersistenceService.from_store(
+            reactor=reactor,
+            store=store,
+        )
+        # XXX This is relies on the fact that DirectoryConfigurationStore is
+        # actually synchronous.
+        service = self.successResultOf(d)
         if logger is not None:
             self.patch(service, "logger", logger)
         service.startService()
@@ -244,10 +259,10 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         self.service(path)
         self.assertTrue(path.child(b"current_configuration.json").exists())
 
-    @validate_logging(assertHasAction, _LOG_UPGRADE, succeeded=True,
-                      startFields=dict(configuration=V1_TEST_DEPLOYMENT_JSON,
-                                       source_version=1,
-                                       target_version=_CONFIG_VERSION))
+    @capture_logging(assertHasAction, _LOG_UPGRADE, succeeded=True,
+                     startFields=dict(configuration=V1_TEST_DEPLOYMENT_JSON,
+                                      source_version=1,
+                                      target_version=_CONFIG_VERSION))
     def test_v1_file_creates_updated_file(self, logger):
         """
         If a version 1 configuration file exists under name
@@ -261,10 +276,10 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         self.service(path, logger)
         self.assertTrue(path.child(b"current_configuration.json").exists())
 
-    @validate_logging(assertHasAction, _LOG_UPGRADE, succeeded=True,
-                      startFields=dict(configuration=V1_TEST_DEPLOYMENT_JSON,
-                                       source_version=1,
-                                       target_version=_CONFIG_VERSION))
+    @capture_logging(assertHasAction, _LOG_UPGRADE, succeeded=True,
+                     startFields=dict(configuration=V1_TEST_DEPLOYMENT_JSON,
+                                      source_version=1,
+                                      target_version=_CONFIG_VERSION))
     def test_v1_file_archived(self, logger):
         """
         If a version 1 configuration file exists, it is archived with a
@@ -328,17 +343,19 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         d.addCallback(self.assertEqual, LATEST_TEST_DEPLOYMENT)
         return d
 
-    @validate_logging(assertHasMessage, _LOG_STARTUP,
-                      fields=dict(configuration=LATEST_TEST_DEPLOYMENT))
-    def test_persist_across_restarts(self, logger):
+    @capture_logging(assertHasMessage, _LOG_STARTUP,
+                     fields=dict(configuration=LATEST_TEST_DEPLOYMENT))
+    def test_persist_across_restarts(self, logger=None):
         """
         A configuration that was saved can be loaded from a new service.
         """
         path = FilePath(self.mktemp())
-        service = ConfigurationPersistenceService(reactor, path)
-        service.startService()
+        service = self.service(path, logger)
+        # First time the service starts it'll log the empty deployment.
+        # We want to test the log message from the startup of the second
+        # service.
+        logger.reset()
         d = service.save(LATEST_TEST_DEPLOYMENT)
-        d.addCallback(lambda _: service.stopService())
 
         def retrieve_in_new_service(_):
             new_service = self.service(path, logger)
@@ -389,7 +406,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         d.addCallback(saved)
         return d
 
-    @validate_logging(assertHasMessage, _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED)
+    @capture_logging(assertHasMessage, _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED)
     def test_callback_not_called_for_unchanged_deployment(self, logger):
         """
         If the old deployment and the new deployment are equivalent, registered
@@ -456,9 +473,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         An empty configuration can be hashed.
         """
         path = FilePath(self.mktemp())
-        service = ConfigurationPersistenceService(reactor, path)
-        service.startService()
-        self.addCleanup(service.stopService)
+        service = self.service(path)
 
         # Hash can be retrieved and passes sanity check:
         self.get_hash(service)
@@ -468,9 +483,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         The configuration hash changes when a new version is saved.
         """
         path = FilePath(self.mktemp())
-        service = ConfigurationPersistenceService(reactor, path)
-        service.startService()
-        self.addCleanup(service.stopService)
+        service = self.service(path)
         original = self.get_hash(service)
         d = service.save(LATEST_TEST_DEPLOYMENT)
 
@@ -485,9 +498,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         A configuration that was saved can be loaded from a new service.
         """
         path = FilePath(self.mktemp())
-        service = ConfigurationPersistenceService(reactor, path)
-        service.startService()
-        self.addCleanup(service.stopService)
+        service = self.service(path)
         d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):

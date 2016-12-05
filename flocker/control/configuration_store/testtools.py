@@ -2,10 +2,30 @@
 """
 Tests for ``flocker.control.configuration_storage``.
 """
+from twisted.internet.defer import succeed
+
+from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from ...testtools import random_name
 from .interface import IConfigurationStore
+
+
+@implementer(IConfigurationStore)
+class MemoryConfigurationStore(object):
+    _content = None
+
+    def initialize(self):
+        if self._content is None:
+            self._content = b''
+        return succeed(None)
+
+    def get_content(self):
+        return succeed(self._content)
+
+    def set_content(self, content):
+        self._content = content
+        return succeed(None)
 
 
 class IConfigurationStoreTestsMixin(object):

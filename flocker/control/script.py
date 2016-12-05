@@ -21,6 +21,7 @@ from twisted.internet.ssl import Certificate
 from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
+from .configuration_store.directory import directory_store_from_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
     enable_profiling, disable_profiling)
@@ -62,7 +63,7 @@ class ConfigurationStorePlugin(PClass):
 CONFIGURATION_STORE_PLUGINS = [
     ConfigurationStorePlugin(
         name=u"directory",
-        factory=lambda x: x,
+        factory=directory_store_from_options,
         options=[[
             "data-path", "d", FilePath(b"/var/lib/flocker"),
             "The directory where data will be persisted.", FilePath
@@ -127,6 +128,20 @@ class ControlScript(object):
     cluster.
     """
     def main(self, reactor, options):
+        store_plugin = options["configuration-store-plugin"]
+        store = store_plugin.factory(options)
+
+        d = ConfigurationPersistenceService.from_store(
+            reactor=reactor,
+            store=store
+        )
+        return d.addCallback(
+            self._setup_services,
+            reactor=reactor,
+            options=options,
+        )
+
+    def _setup_services(self, persistence, reactor, options):
         certificates_path = FilePath(options["certificates-directory"])
         ca = Certificate.loadPEM(
             certificates_path.child(b"cluster.crt").getContent())
@@ -136,8 +151,6 @@ class ControlScript(object):
             certificates_path, b"service")
 
         top_service = MultiService()
-        persistence = ConfigurationPersistenceService(
-            reactor, options["data-path"])
         persistence.setServiceParent(top_service)
         cluster_state = ClusterStateService(reactor)
         cluster_state.setServiceParent(top_service)
