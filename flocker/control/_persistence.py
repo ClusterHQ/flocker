@@ -595,13 +595,17 @@ class ConfigurationPersistenceService(MultiService):
     """
     logger = Logger()
 
-    def __init__(self, reactor, store, deployment=None):
+    def __init__(self, reactor, store=None, deployment=None):
         """
         :param reactor: Reactor to use for thread pool.
         :param IConfigurationStore store: An already initialized
-            IConfigurationStore implementer.
+            IConfigurationStore implementer. Defaults to an in memory store.
+        :param Deployment deployment: The initial deployment.
         """
         MultiService.__init__(self)
+        if store is None:
+            from .configuration_store.testtools import MemoryConfigurationStore
+            store = MemoryConfigurationStore()
         self._store = store
         if deployment is None:
             deployment = Deployment()
