@@ -821,9 +821,15 @@ def _is_cluster_volume(cluster_id, ebs_volume):
             if tag['Key'] == CLUSTER_ID_LABEL
         ]
         if actual_cluster_id:
-            actual_cluster_id = UUID(actual_cluster_id.pop())
-            if actual_cluster_id == cluster_id:
-                return True
+            try:
+                actual_cluster_id = UUID(actual_cluster_id.pop())
+                if actual_cluster_id == cluster_id:
+                    return True
+            except ValueError:
+                # If we can't parse the cluster id value as a UUID, assume
+                # that it's not part of our cluster instead of stopping the
+                # iteration
+                pass
     return False
 
 
