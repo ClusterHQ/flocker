@@ -9,6 +9,7 @@ from ..testtools import IConfigurationStoreTestsMixin
 
 from twisted.internet import reactor
 
+
 class SQLConfigurationStoreInterfaceTests(IConfigurationStoreTestsMixin,
                                           AsyncTestCase):
     """
@@ -16,7 +17,7 @@ class SQLConfigurationStoreInterfaceTests(IConfigurationStoreTestsMixin,
     """
     def setUp(self):
         super(SQLConfigurationStoreInterfaceTests, self).setUp()
-        self.store = SQLConfigurationStore(
-            connection_string=u"sqlite:///{}".format(self.make_temporary_file().path),
+        self.store = SQLConfigurationStore.from_connection_string(
             reactor=reactor,
+            connection_string=u"sqlite://",
         )

@@ -6,15 +6,16 @@ Persistence of cluster configuration to a SQL database.
 from .interface import IConfigurationStore
 
 from alchimia import TWISTED_STRATEGY
+from alchimia.engine import TwistedEngine
 
 from pyrsistent import PClass, field
 
 from sqlalchemy import (
-    create_engine, MetaData, Table, Column, Integer, String, LargeBinary
+    create_engine, MetaData, Table, Column, LargeBinary
 )
 from sqlalchemy.schema import CreateTable
 
-from twisted.internet.defer import inlineCallbacks, succeed, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 from zope.interface import implementer
 
@@ -28,38 +29,39 @@ CONFIGURATION_TABLE = Table(
 
 @implementer(IConfigurationStore)
 class SQLConfigurationStore(PClass):
+    """
+    An ``IConfigurationStore`` which stores content to any SQL database
+    supported by SQLAlchemy.
 
-    connection_string = field(
-        type=(unicode,),
-        mandatory=True
-    )
-    reactor = field(mandatory=True)
+    See: http://docs.sqlalchemy.org/en/latest/dialects/index.html
+    """
+    engine = field(mandatory=True, type=(TwistedEngine,))
 
-    def _engine(self):
-        return create_engine(
-            self.connection_string,
-            reactor=self.reactor,
+    @classmethod
+    def from_connection_string(cls, reactor, connection_string):
+        engine = create_engine(
+            connection_string,
+            reactor=reactor,
             strategy=TWISTED_STRATEGY,
         )
+        return cls(engine=engine)
 
     @inlineCallbacks
     def initialize(self):
-        engine = self._engine()
-        table_names = yield engine.table_names()
+        table_names = yield self.engine.table_names()
         if not set(METADATA.tables.keys()).issubset(table_names):
-            yield engine.execute(
+            yield self.engine.execute(
                 CreateTable(CONFIGURATION_TABLE)
             )
-            yield engine.execute(
+            yield self.engine.execute(
                 CONFIGURATION_TABLE.insert().values(content=b"")
             )
-        table_names = yield engine.table_names()
+        table_names = yield self.engine.table_names()
         returnValue(None)
 
     @inlineCallbacks
     def get_content(self):
-        engine = self._engine()
-        result = yield engine.execute(
+        result = yield self.engine.execute(
             CONFIGURATION_TABLE.select()
         )
         [content] = yield result.fetchall()
@@ -68,8 +70,7 @@ class SQLConfigurationStore(PClass):
 
     @inlineCallbacks
     def set_content(self, content):
-        engine = self._engine()
-        yield engine.execute(
+        yield self.engine.execute(
             CONFIGURATION_TABLE.update().values(content=content)
         )
         returnValue(None)
