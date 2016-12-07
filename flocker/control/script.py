@@ -75,10 +75,13 @@ CONFIGURATION_STORE_PLUGINS = [
         name=u"sql",
         factory=sql_store_from_options,
         options=[[
-            "database-url", None, "", (
+            "database-url",
+            None,
+            "sqlite:////var/lib/flocker/current_configuration.sqlite",
+            (
                 "An SQLAlchemy database URL. "
-                "See http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls"  # noqa
-                )
+                "Only valid when using --configuration-store-plugin=sql. "
+            ),
         ]],
     ),
 ]
