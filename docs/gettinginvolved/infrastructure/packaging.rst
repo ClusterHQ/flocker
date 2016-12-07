@@ -187,7 +187,7 @@ To run the ``flocker-control`` container:
         clusterhqci/flocker-control:master
 
 flocker-docker-plugin
---------------------
+---------------------
 
 The ``flocker-docker-plugin`` Docker image is built using the same ``docker build ...`` command line as for ``flocker-dataset-agent`` but substituting the ``docker-plugin``.
 
@@ -202,5 +202,3 @@ To run the ``flocker-docker-plugin`` container:
         --detach \
         clusterhqci/flocker-docker-plugin:master \
         --rest-api-port=4523
-
-
