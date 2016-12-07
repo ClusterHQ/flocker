@@ -216,7 +216,6 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
-                'restart_policy': 'on-failure',
                 'restart_policy': {
                     "name": "on-failure", "maximum_retry_count": "15"
                 }
@@ -226,7 +225,6 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'node_uuid': valid_uuid,
                 'image': 'postgres',
                 'name': 'postgres',
-                'restart_policy': 'on-failure',
                 'restart_policy': {
                     "maximum_retry_count": 15
                 }
