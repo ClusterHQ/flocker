@@ -25,7 +25,6 @@ env:
 
 matrix:
   allow_failures:
-  - env: FLOCKER_BUILDER=docs-lint
   - env: FLOCKER_BUILDER=docs-linkcheck
 
 script:
