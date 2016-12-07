@@ -606,6 +606,11 @@ IGNORED_WARNINGS = {
         # E.g.
         # /opt/flocker/lib/python2.7/site-packages/sphinx/locale/bn/LC_MESSAGES/sphinx.mo
         'file-not-in-%lang',
+
+        # Twisted 16.6 includes an executable C source file.
+        # https://twistedmatrix.com/trac/ticket/8921
+        'spurious-executable-perm /opt/flocker/lib/python2.7/site-packages/twisted/internet/iocpreactor/iocpsupport/iocpsupport.c', # noqa
+
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
