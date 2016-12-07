@@ -17,7 +17,7 @@ class SQLConfigurationStoreInterfaceTests(IConfigurationStoreTestsMixin,
     """
     def setUp(self):
         super(SQLConfigurationStoreInterfaceTests, self).setUp()
-        self.store = SQLConfigurationStore.from_connection_string(
+        self.store = SQLConfigurationStore.from_database_url(
             reactor=reactor,
-            connection_string=u"sqlite://",
+            database_url=u"sqlite://",
         )

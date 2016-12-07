@@ -38,9 +38,9 @@ class SQLConfigurationStore(PClass):
     engine = field(mandatory=True, type=(TwistedEngine,))
 
     @classmethod
-    def from_connection_string(cls, reactor, connection_string):
+    def from_database_url(cls, reactor, database_url):
         engine = create_engine(
-            connection_string,
+            database_url,
             reactor=reactor,
             strategy=TWISTED_STRATEGY,
         )
@@ -74,3 +74,16 @@ class SQLConfigurationStore(PClass):
             CONFIGURATION_TABLE.update().values(content=content)
         )
         returnValue(None)
+
+
+def sql_store_from_options(reactor, options):
+    """
+    :param reactor: The reactor supplied by the entry point function.
+    :param twisted.python.usage.Options options: The command line options
+        supplied to the entry point function.
+    :returns: An SQLConfigurationStore connected to the supplied database URL.
+    """
+    return SQLConfigurationStore.from_database_url(
+        reactor=reactor,
+        database_url=options["database-url"],
+    )

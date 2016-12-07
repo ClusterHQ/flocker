@@ -64,7 +64,7 @@ class DirectoryConfigurationStore(PClass):
         return succeed(self.path.setContent(content))
 
 
-def directory_store_from_options(options):
+def directory_store_from_options(reactor, options):
     return DirectoryConfigurationStore(
         directory=options["data-path"]
     )

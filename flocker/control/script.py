@@ -22,6 +22,7 @@ from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
 from .configuration_store.directory import directory_store_from_options
+from .configuration_store.sql import sql_store_from_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
     enable_profiling, disable_profiling)
@@ -69,6 +70,16 @@ CONFIGURATION_STORE_PLUGINS = [
             "The directory where data will be persisted.", FilePath
         ]],
 
+    ),
+    ConfigurationStorePlugin(
+        name=u"sql",
+        factory=sql_store_from_options,
+        options=[[
+            "database-url", None, "", (
+                "An SQLAlchemy database URL. "
+                "See http://docs.sqlalchemy.org/en/latest/core/engines.html#database-urls"  # noqa
+                )
+        ]],
     ),
 ]
 CONFIGURATION_STORE_PLUGINS_BY_NAME = {
@@ -129,7 +140,10 @@ class ControlScript(object):
     """
     def main(self, reactor, options):
         store_plugin = options["configuration-store-plugin"]
-        store = store_plugin.factory(options)
+        store = store_plugin.factory(
+            reactor=reactor,
+            options=options
+        )
 
         d = ConfigurationPersistenceService.from_store(
             reactor=reactor,
