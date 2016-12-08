@@ -291,32 +291,88 @@ class SelectFreeDeviceTests(TestCase):
         self.assertRaises(NoAvailableDevice, _select_free_device, existing)
 
 
+def boto_volume_for_test(test, cluster_id):
+    """
+    Create an in-memory boto3 Volume, avoiding any AWS API calls.
+    """
+    # See https://boto3.readthedocs.io/en/latest/reference/services/ec2.html#volume  # noqa
+    ec2 = boto3.resource("ec2")
+    v = ec2.Volume(id=random_name(test))
+    tags = []
+    if cluster_id is not None:
+        tags.append(
+            dict(
+                Key=CLUSTER_ID_LABEL,
+                Value=cluster_id,
+            ),
+        )
+    # Pre-populate the metadata to prevent any attempt to load the metadata by
+    # API calls.
+    v.meta.data = dict(
+        Tags=tags
+    )
+    return v
+
+
 class IsClusterVolumeTests(TestCase):
     """
     Tests for ``_is_cluster_volume``.
     """
+    def test_missing_cluster_id(self):
+        """
+        Volumes without a flocker-cluster-id Tag are ignored.
+        """
+        self.assertFalse(
+            _is_cluster_volume(
+                cluster_id=uuid4(),
+                ebs_volume=boto_volume_for_test(
+                    test=self,
+                    cluster_id=None,
+                )
+            )
+        )
+
+    def test_foreign_cluster_id(self):
+        """
+        Volumes with an unexpected flocker-cluster-id Tag are ignored.
+        """
+        self.assertFalse(
+            _is_cluster_volume(
+                cluster_id=uuid4(),
+                ebs_volume=boto_volume_for_test(
+                    test=self,
+                    cluster_id=unicode(uuid4()),
+                )
+            )
+        )
+
     def test_invalid_cluster_id(self):
         """
         Volumes that have an non-uuid4 flocker-cluster-id are ignored.
         The invalid flocker-cluster-id is logged.
         """
         bad_cluster_id = "An invalid flocker-cluster-id"
-        # See https://boto3.readthedocs.io/en/latest/reference/services/ec2.html#volume  # noqa
-        ec2 = boto3.resource("ec2")
-        v = ec2.Volume(id=random_name(self))
-        # Pre-populate the metadata to prevent any attempt to load the metadata
-        # by API calls.
-        v.meta.data = dict(
-            Tags=[
-                dict(
-                    Key=CLUSTER_ID_LABEL,
-                    Value=bad_cluster_id,
-                ),
-            ]
-        )
         self.assertFalse(
             _is_cluster_volume(
                 cluster_id=uuid4(),
-                ebs_volume=v
+                ebs_volume=boto_volume_for_test(
+                    test=self,
+                    cluster_id=bad_cluster_id,
+                )
+            )
+        )
+
+    def test_valid_cluster_id(self):
+        """
+        Volumes that have the expected uuid4 flocker-cluster-id are identified.
+        """
+        cluster_id = uuid4()
+        self.assertTrue(
+            _is_cluster_volume(
+                cluster_id=cluster_id,
+                ebs_volume=boto_volume_for_test(
+                    test=self,
+                    cluster_id=unicode(cluster_id),
+                )
             )
         )
