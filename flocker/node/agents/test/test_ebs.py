@@ -7,6 +7,8 @@ Tests for ``flocker.node.agents.ebs``.
 from string import ascii_lowercase
 from uuid import uuid4
 
+import boto3
+
 from hypothesis import given
 from hypothesis.strategies import lists, sampled_from, builds
 
@@ -21,11 +23,12 @@ from ..ebs import (
     _attach_volume_and_wait_for_device, _get_blockdevices,
     _get_device_size, _wait_for_new_device, _find_allocated_devices,
     _select_free_device, NoAvailableDevice,
+    _is_cluster_volume, CLUSTER_ID_LABEL
 )
 from .._logging import NO_NEW_DEVICE_IN_OS
 from ..blockdevice import BlockDeviceVolume
 
-from ....testtools import CustomException, TestCase
+from ....testtools import CustomException, TestCase, random_name
 
 
 # A Hypothesis strategy for generating /dev/sd?
@@ -286,3 +289,34 @@ class SelectFreeDeviceTests(TestCase):
         """
         existing = ['sd' + ch for ch in ascii_lowercase]
         self.assertRaises(NoAvailableDevice, _select_free_device, existing)
+
+
+class IsClusterVolumeTests(TestCase):
+    """
+    Tests for ``_is_cluster_volume``.
+    """
+    def test_invalid_cluster_id(self):
+        """
+        Volumes that have an non-uuid4 flocker-cluster-id are ignored.
+        The invalid flocker-cluster-id is logged.
+        """
+        bad_cluster_id = "An invalid flocker-cluster-id"
+        # See https://boto3.readthedocs.io/en/latest/reference/services/ec2.html#volume  # noqa
+        ec2 = boto3.resource("ec2")
+        v = ec2.Volume(id=random_name(self))
+        # Pre-populate the metadata to prevent any attempt to load the metadata
+        # by API calls.
+        v.meta.data = dict(
+            Tags=[
+                dict(
+                    Key=CLUSTER_ID_LABEL,
+                    Value=bad_cluster_id,
+                ),
+            ]
+        )
+        self.assertFalse(
+            _is_cluster_volume(
+                cluster_id=uuid4(),
+                ebs_volume=v
+            )
+        )
