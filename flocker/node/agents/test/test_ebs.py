@@ -299,10 +299,12 @@ def boto_volume_for_test(test, cluster_id):
     """
     # Create a session directly rather than allow lazy loading of a default
     # session.
+    region_name = u"some-test-region-1"
     s = Boto3Session(
-        botocore_session=botocore_get_session()
+        botocore_session=botocore_get_session(),
+        region_name=region_name,
     )
-    ec2 = s.resource("ec2")
+    ec2 = s.resource("ec2", region_name=region_name)
     stubber = Stubber(ec2.meta.client)
     # From this point, any attempt to interact with AWS API should fail with
     # botocore.exceptions.StubResponseError
