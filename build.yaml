@@ -711,22 +711,7 @@ common_cli:
 run_trial_modules: &run_trial_modules
   - admin
   - benchmark
-  - flocker.acceptance.test
-  - flocker.apiclient
-  - flocker.ca.functional
-  - flocker.ca.test
-  - flocker.cli
-  - flocker.common
-  - flocker.control
-  - flocker.docs
-  - flocker.dockerplugin
-  - flocker.node.test
-  - flocker.node.functional.test_script
-  - flocker.node.functional.test_deploy
-  - flocker.provision
-  - flocker.restapi
-  - flocker.test
-  - flocker.testtools
+  - flocker
 run_trial_as_root_modules: &run_trial_as_root_modules
   # journald access requires root
   - flocker.common.functional
