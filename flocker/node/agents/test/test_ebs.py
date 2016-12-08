@@ -265,7 +265,7 @@ class FindAllocatedDeviceTests(TestCase):
         devices = _find_allocated_devices()
         self.assertGreater(len(devices), 0)
         self.assertTrue(
-            all(FilePath('/dev/{}'.format(d)).exists() for d in devices)
+            all(FilePath('/sys/block/{}'.format(d)).exists() for d in devices)
         )
 
 
