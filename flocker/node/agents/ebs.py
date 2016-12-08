@@ -50,7 +50,7 @@ from ._logging import (
     AWS_ACTION, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
     BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
-    BOTO_LOG_RESULT, VOLUME_BUSY_MESSAGE,
+    BOTO_LOG_RESULT, VOLUME_BUSY_MESSAGE, INVALID_FLOCKER_CLUSTER_ID,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -829,6 +829,10 @@ def _is_cluster_volume(cluster_id, ebs_volume):
                 # If we can't parse the cluster id value as a UUID, assume
                 # that it's not part of our cluster instead of stopping the
                 # iteration
+                INVALID_FLOCKER_CLUSTER_ID(
+                    flocker_cluster_id=actual_cluster_id,
+                    volume_id=ebs_volume.id,
+                ).write()
                 return False
             if actual_cluster_id == cluster_id:
                 return True

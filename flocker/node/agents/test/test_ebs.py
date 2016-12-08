@@ -25,7 +25,7 @@ from ..ebs import (
     _select_free_device, NoAvailableDevice,
     _is_cluster_volume, CLUSTER_ID_LABEL
 )
-from .._logging import NO_NEW_DEVICE_IN_OS
+from .._logging import NO_NEW_DEVICE_IN_OS, INVALID_FLOCKER_CLUSTER_ID
 from ..blockdevice import BlockDeviceVolume
 
 from ....testtools import CustomException, TestCase, random_name
@@ -346,12 +346,13 @@ class IsClusterVolumeTests(TestCase):
             )
         )
 
-    def test_invalid_cluster_id(self):
+    @capture_logging(assertHasMessage, INVALID_FLOCKER_CLUSTER_ID)
+    def test_invalid_cluster_id(self, logger):
         """
         Volumes that have an non-uuid4 flocker-cluster-id are ignored.
         The invalid flocker-cluster-id is logged.
         """
-        bad_cluster_id = "An invalid flocker-cluster-id"
+        bad_cluster_id = u"An invalid flocker-cluster-id"
         self.assertFalse(
             _is_cluster_volume(
                 cluster_id=uuid4(),
