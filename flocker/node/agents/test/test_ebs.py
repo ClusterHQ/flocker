@@ -7,7 +7,9 @@ Tests for ``flocker.node.agents.ebs``.
 from string import ascii_lowercase
 from uuid import uuid4
 
-import boto3
+from botocore.session import get_session as botocore_get_session
+from botocore.stub import Stubber
+from boto3.session import Session as Boto3Session
 
 from hypothesis import given
 from hypothesis.strategies import lists, sampled_from, builds
@@ -295,9 +297,18 @@ def boto_volume_for_test(test, cluster_id):
     """
     Create an in-memory boto3 Volume, avoiding any AWS API calls.
     """
-    # See https://boto3.readthedocs.io/en/latest/reference/services/ec2.html#volume  # noqa
-    ec2 = boto3.resource("ec2")
-    v = ec2.Volume(id=random_name(test))
+    # Create a session directly rather than allow lazy loading of a default
+    # session.
+    s = Boto3Session(
+        botocore_session=botocore_get_session()
+    )
+    ec2 = s.resource("ec2")
+    stubber = Stubber(ec2.meta.client)
+    # From this point, any attempt to interact with AWS API should fail with
+    # botocore.exceptions.StubResponseError
+    stubber.activate()
+    volume_id = u"vol-{}".format(random_name(test))
+    v = ec2.Volume(id=volume_id)
     tags = []
     if cluster_id is not None:
         tags.append(
