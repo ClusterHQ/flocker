@@ -17,7 +17,9 @@ install:
   - pip install tox awscli
 
 env:
-  - FLOCKER_BUILDER=py27
+  - FLOCKER_BUILDER=test-admin
+  - FLOCKER_BUILDER=test-benchmark
+  - FLOCKER_BUILDER=test-flocker
   - FLOCKER_BUILDER=lint
   - FLOCKER_BUILDER=docs-lint
   - FLOCKER_BUILDER=docs-spelling

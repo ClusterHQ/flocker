@@ -20,7 +20,9 @@ def tox(tox_env):
 
 
 BUILDERS = {
-    "py27": tox,
+    "test-admin": tox,
+    "test-benchmark": tox,
+    "test-flocker": tox,
     "lint": tox,
     "docs-lint": tox,
     "docs-spelling": tox,
