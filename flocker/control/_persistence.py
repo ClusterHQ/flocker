@@ -4,7 +4,6 @@
 Persistence of cluster configuration.
 """
 
-from base64 import b16encode
 from calendar import timegm
 from datetime import datetime
 from json import dumps, loads
@@ -590,6 +589,24 @@ def update_leases(transform, persistence_service):
     return succeed(new_leases)
 
 
+def maybe_upgrade_config(config_json):
+    if config_json == b'':
+        deployment = Deployment()
+    else:
+        config_dict = loads(config_json)
+        config_version = config_dict.get('version', 1)
+        if config_version < _CONFIG_VERSION:
+            with _LOG_UPGRADE(configuration=config_json,
+                              source_version=config_version,
+                              target_version=_CONFIG_VERSION):
+                config_json = migrate_configuration(
+                    config_version, _CONFIG_VERSION,
+                    config_json, ConfigurationMigration)
+        config = wire_decode(config_json)
+        deployment = config.deployment
+    return deployment
+
+
 class ConfigurationPersistenceService(MultiService):
     """
     Persist configuration to disk, and load it back.
@@ -632,25 +649,8 @@ class ConfigurationPersistenceService(MultiService):
             return store.get_content()
         d = d.addCallback(load_config)
 
-        def maybe_upgrade_config(config_json):
-            if config_json == b'':
-                deployment = Deployment()
-            else:
-                config_dict = loads(config_json)
-                config_version = config_dict.get('version', 1)
-                if config_version < _CONFIG_VERSION:
-                    with _LOG_UPGRADE(configuration=config_json,
-                                      source_version=config_version,
-                                      target_version=_CONFIG_VERSION):
-                        config_json = migrate_configuration(
-                            config_version, _CONFIG_VERSION,
-                            config_json, ConfigurationMigration)
-                config = wire_decode(config_json)
-                deployment = config.deployment
-            return deployment
-        d = d.addCallback(maybe_upgrade_config)
-
-        def create_persistence_service(deployment):
+        def create_persistence_service(config):
+            deployment = maybe_upgrade_config(config)
             o = cls(
                 reactor=reactor,
                 store=store,
@@ -701,9 +701,6 @@ class ConfigurationPersistenceService(MultiService):
     def _encode_deployment(self, deployment):
         config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
         return wire_encode(config)
-
-    def _hash_deployment_data(self, deployment_data):
-        return b16encode(mmh3_hash_bytes(deployment_data)).lower()
 
     def _really_save(self, deployment):
         data = self._encode_deployment(deployment)
