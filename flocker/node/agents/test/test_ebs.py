@@ -7,6 +7,10 @@ Tests for ``flocker.node.agents.ebs``.
 from string import ascii_lowercase
 from uuid import uuid4
 
+from botocore.session import get_session as botocore_get_session
+from botocore.stub import Stubber
+from boto3.session import Session as Boto3Session
+
 from hypothesis import given
 from hypothesis.strategies import lists, sampled_from, builds
 
@@ -21,11 +25,12 @@ from ..ebs import (
     _attach_volume_and_wait_for_device, _get_blockdevices,
     _get_device_size, _wait_for_new_device, _find_allocated_devices,
     _select_free_device, NoAvailableDevice,
+    _is_cluster_volume, CLUSTER_ID_LABEL
 )
-from .._logging import NO_NEW_DEVICE_IN_OS
+from .._logging import NO_NEW_DEVICE_IN_OS, INVALID_FLOCKER_CLUSTER_ID
 from ..blockdevice import BlockDeviceVolume
 
-from ....testtools import CustomException, TestCase
+from ....testtools import CustomException, TestCase, random_name
 
 
 # A Hypothesis strategy for generating /dev/sd?
@@ -286,3 +291,102 @@ class SelectFreeDeviceTests(TestCase):
         """
         existing = ['sd' + ch for ch in ascii_lowercase]
         self.assertRaises(NoAvailableDevice, _select_free_device, existing)
+
+
+def boto_volume_for_test(test, cluster_id):
+    """
+    Create an in-memory boto3 Volume, avoiding any AWS API calls.
+    """
+    # Create a session directly rather than allow lazy loading of a default
+    # session.
+    region_name = u"some-test-region-1"
+    s = Boto3Session(
+        botocore_session=botocore_get_session(),
+        region_name=region_name,
+    )
+    ec2 = s.resource("ec2", region_name=region_name)
+    stubber = Stubber(ec2.meta.client)
+    # From this point, any attempt to interact with AWS API should fail with
+    # botocore.exceptions.StubResponseError
+    stubber.activate()
+    volume_id = u"vol-{}".format(random_name(test))
+    v = ec2.Volume(id=volume_id)
+    tags = []
+    if cluster_id is not None:
+        tags.append(
+            dict(
+                Key=CLUSTER_ID_LABEL,
+                Value=cluster_id,
+            ),
+        )
+    # Pre-populate the metadata to prevent any attempt to load the metadata by
+    # API calls.
+    v.meta.data = dict(
+        Tags=tags
+    )
+    return v
+
+
+class IsClusterVolumeTests(TestCase):
+    """
+    Tests for ``_is_cluster_volume``.
+    """
+    def test_missing_cluster_id(self):
+        """
+        Volumes without a flocker-cluster-id Tag are ignored.
+        """
+        self.assertFalse(
+            _is_cluster_volume(
+                cluster_id=uuid4(),
+                ebs_volume=boto_volume_for_test(
+                    test=self,
+                    cluster_id=None,
+                )
+            )
+        )
+
+    def test_foreign_cluster_id(self):
+        """
+        Volumes with an unexpected flocker-cluster-id Tag are ignored.
+        """
+        self.assertFalse(
+            _is_cluster_volume(
+                cluster_id=uuid4(),
+                ebs_volume=boto_volume_for_test(
+                    test=self,
+                    cluster_id=unicode(uuid4()),
+                )
+            )
+        )
+
+    @capture_logging(assertHasMessage, INVALID_FLOCKER_CLUSTER_ID)
+    def test_invalid_cluster_id(self, logger):
+        """
+        Volumes that have an non-uuid4 flocker-cluster-id are ignored.
+        The invalid flocker-cluster-id is logged.
+        """
+        bad_cluster_id = u"An invalid flocker-cluster-id"
+        self.assertFalse(
+            _is_cluster_volume(
+                cluster_id=uuid4(),
+                ebs_volume=boto_volume_for_test(
+                    test=self,
+                    cluster_id=bad_cluster_id,
+                )
+            )
+        )
+
+    def test_valid_cluster_id(self):
+        """
+        Volumes that have the expected uuid4 flocker-cluster-id are identified.
+        """
+        cluster_id = uuid4()
+        self.assertTrue(
+            _is_cluster_volume(
+                cluster_id=cluster_id,
+                ebs_volume=boto_volume_for_test(
+                    test=self,
+                    cluster_id=unicode(cluster_id),
+                )
+            )
+        )
