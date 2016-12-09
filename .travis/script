@@ -16,7 +16,14 @@ from subprocess import call
 
 
 def tox(tox_env):
-    return call(["tox", "-e", tox_env])
+    return call([
+        "tox",
+        # XXX This is a hack to work around broken code and tests that rely on
+        # dictionary keys and sets having a consistent order, which they don't.
+        # See FLOC-4554.
+        "--hashseed", "noset",
+        "-e", tox_env
+    ])
 
 
 BUILDERS = {
