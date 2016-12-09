@@ -782,19 +782,8 @@ job_type:
       timeout: 30
       directories_to_delete: *run_trial_directories_to_delete
 
-    # http://build.clusterhq.com/builders/flocker-admin
-    # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
-    run_trial_on_AWS_Ubuntu_Trusty:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_modules: *run_trial_modules
-      with_steps:
-        - { type: 'shell', cli: *run_trial_cli }
-      archive_artifacts: *flocker_artifacts
-      publish_test_results: true
-      coverage_report: true
-      clean_repo: true
-      timeout: 30
-      directories_to_delete: *run_trial_directories_to_delete
+    # Ubuntu 14.04 non-root tests are run on Travis-CI container infrastructure.
+    # See .travis.yml
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
