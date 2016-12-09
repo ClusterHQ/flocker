@@ -144,7 +144,7 @@ class GetNodeCPUTimeTests(AsyncTestCase):
 
         def check(result):
             self.assertEqual(
-                result.keys(), [_pid_1_name, WALLCLOCK_LABEL]
+                set(result.keys()), {_pid_1_name, WALLCLOCK_LABEL}
             )
 
         d.addCallback(check)

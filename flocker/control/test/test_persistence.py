@@ -838,7 +838,8 @@ class LatestGoldenFilesValid(TestCase):
                 b"configuration_%d_v%d.json" % (i, _CONFIG_VERSION)
             )
             self.assertEqual(
-                encoding, path.getContent().rstrip(),
+                json.loads(encoding),
+                json.loads(path.getContent().rstrip()),
                 "Golden test file %s can not be generated from HEAD. Please "
                 "review the python files in that directory to re-generate "
                 "that file if you have intentionally changed the backing test "

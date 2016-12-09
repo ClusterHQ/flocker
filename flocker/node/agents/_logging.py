@@ -121,6 +121,19 @@ VOLUME_BUSY_MESSAGE = MessageType(
         Field.for_types("volume_id", [bytes, unicode], u"The blockdevice ID."),
     ],
 )
+
+INVALID_FLOCKER_CLUSTER_ID = MessageType(
+    u"flocker:node:agents:blockdevice:aws:invalid_flocker_cluster_id",
+    [
+        Field.for_types(
+            "flocker_cluster_id",
+            [unicode],
+            u"The discovered flocker-cluster-id value."
+        ),
+        Field.for_types("volume_id", [bytes, unicode], u"The blockdevice ID."),
+    ],
+    u"A volume had a flocker-cluster-id tag but the value was not a uuid4.",)
+
 # End: Helper datastructures used by AWS storage driver.
 
 # Begin: Helper datastructures used by OpenStack storage drivers

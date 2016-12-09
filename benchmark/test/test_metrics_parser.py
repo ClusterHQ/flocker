@@ -320,7 +320,10 @@ class MetricsParserTests(TestCase):
             s.update(common_props)
 
         samples = handle_cputime_metric(common_props, sample)
-        self.assertEqual(samples, expected_samples)
+        self.assertEqual(
+            sorted(samples),
+            sorted(expected_samples)
+        )
 
     def test_handle_wallclock_metrics_creates_sample(self):
         """
@@ -341,4 +344,7 @@ class MetricsParserTests(TestCase):
             s.update(common_props)
 
         samples = handle_wallclock_metric(common_props, sample)
-        self.assertEqual(samples, expected_samples)
+        self.assertEqual(
+            sorted(samples),
+            sorted(expected_samples)
+        )
