@@ -357,7 +357,7 @@ common_cli:
     - ${WORKSPACE}/.hypothesis
 
   run_acceptance_directories_to_delete: &run_acceptance_directories_to_delete
-    - ${WORKSPACE}/repo
+    - ${WORKSPACE}/dist
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
