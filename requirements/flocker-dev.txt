@@ -1,7 +1,4 @@
-# Use a local fork of mimic until a new upstream version is released.
-# FLOC-4513
---find-links git+https://github.com/ClusterHQ/mimic@2.1.0+chq2#egg=mimic-2.1.0+chq2
-mimic==2.1.0+chq2
+mimic==2.1.0
 # Required by flocker.acceptance.integration.test_postgres
 pg8000==1.10.6
 pycrypto==2.6.1
