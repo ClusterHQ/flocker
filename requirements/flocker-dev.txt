@@ -22,7 +22,7 @@ Babel==2.3.4
 cffi==1.9.1
 constantly==15.1.0
 cryptography==1.6
-docutils==0.12
+docutils==0.13.1
 enum34==1.1.6
 extras==1.0.0
 fixtures==3.0.0
