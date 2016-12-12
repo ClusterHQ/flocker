@@ -419,13 +419,19 @@ common_cli:
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
     #
+    EXTERNAL_IP=$(\
+        curl \
+            --silent \
+            --header "Metadata-Flavor: Google" \
+            http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+    )
+    BUILD_SERVER="http://${EXTERNAL_IP}/${TRIGGERED_BRANCH}/${BUILD_TAG}"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
     --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(curl -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip) \
+    --build-server ${BUILD_SERVER} \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -472,11 +478,11 @@ common_cli:
   build_package: &build_package  |
     # Build an RPM / DEB package using docker.
     # The packages are served by a local nginx server.
-    REPO_PATH=/var/www/html
-    REPO_PATH=${REPO_PATH}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
-    # Other functions that follow this perform operations on the REPO_PATH.
-    export REPO_PATH
-    sudo rm -rf ${REPO_PATH}
+    REPO_BASE=/var/www/html/${TRIGGERED_BRANCH}/${BUILD_TAG}
+    REPO_PATH=${REPO_BASE}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
+    # Export for subsequent functions that perform operations on the REPO_BASE
+    # and REPO_PATH.
+    export REPO_BASE REPO_PATH
     sudo mkdir -p ${REPO_PATH}
     ${venv}/bin/python admin/build-package \
     --destination-path ${REPO_PATH} \
@@ -505,7 +511,7 @@ common_cli:
 
   clean_packages: &clean_packages |
     # Delete the repo files we created
-    sudo rm -rf $REPO_PATH
+    sudo rm -rf $REPO_BASE
 
   exit_with_return_code_from_test: &exit_with_return_code_from_test |
     # this is where we make sure we exit with the correct return code
