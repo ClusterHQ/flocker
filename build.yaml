@@ -425,7 +425,7 @@ common_cli:
             --header "Metadata-Flavor: Google" \
             http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
     )
-    BUILD_SERVER="http://${EXTERNAL_IP}/${TRIGGERED_BRANCH}/${BUILD_TAG}"
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
@@ -444,12 +444,13 @@ common_cli:
     # The admin/run-acceptance-tests will provision a flocker cluster with a
     # single node since the loopback backend doesn't support moving data across
     # hosts.
+    EXTERNAL_IP=$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} --number-of-nodes 1 \
     --provider ${ACCEPTANCE_TEST_PROVIDER} --dataset-backend loopback \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --build-server $BUILD_SERVER \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -458,11 +459,12 @@ common_cli:
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
+    EXTERNAL_IP=$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}"
     ${venv}/bin/python admin/run-client-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    --build-server $BUILD_SERVER \
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   disable_selinux: &disable_selinux |
@@ -478,7 +480,7 @@ common_cli:
   build_package: &build_package  |
     # Build an RPM / DEB package using docker.
     # The packages are served by a local nginx server.
-    REPO_BASE=/var/www/html/${TRIGGERED_BRANCH}/${BUILD_TAG}
+    REPO_BASE=/var/www/html/${BUILD_TAG}
     REPO_PATH=${REPO_BASE}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
     # Export for subsequent functions that perform operations on the REPO_BASE
     # and REPO_PATH.
@@ -540,7 +542,7 @@ common_cli:
   build_docker_image_flocker: &build_docker_image_flocker |
     # Build Flocker Docker image
     BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
-    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
     docker build \
         --rm \
         --tag "${DOCKER_IMAGE}" \
@@ -556,7 +558,7 @@ common_cli:
   build_docker_image_flocker_control: &build_docker_image_flocker_control |
     # Build Flocker-control Docker image
     BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
-    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
     docker build \
         --rm \
         --tag "${DOCKER_IMAGE}" \
@@ -571,7 +573,7 @@ common_cli:
   build_docker_image_flocker_docker_plugin: &build_docker_image_flocker_docker_plugin |
     # Build Flocker-docker-plugin Docker image
     BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
-    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
     docker build \
         --rm \
         --tag "${DOCKER_IMAGE}" \
