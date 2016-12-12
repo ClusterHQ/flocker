@@ -425,7 +425,7 @@ common_cli:
             --header "Metadata-Flavor: Google" \
             http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
     )
-    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}"
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
@@ -445,7 +445,7 @@ common_cli:
     # single node since the loopback backend doesn't support moving data across
     # hosts.
     EXTERNAL_IP=$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
-    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}"
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} --number-of-nodes 1 \
     --provider ${ACCEPTANCE_TEST_PROVIDER} --dataset-backend loopback \
@@ -460,7 +460,7 @@ common_cli:
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
     EXTERNAL_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
-    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}"
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-client-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --branch ${TRIGGERED_BRANCH} \
