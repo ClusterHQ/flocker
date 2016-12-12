@@ -470,9 +470,16 @@ common_cli:
     ${venv}/bin/python setup.py sdist
 
   build_package: &build_package  |
-    # and build a rpm/deb package using docker
+    # Build an RPM / DEB package using docker.
+    # The packages are served by a local nginx server.
+    REPO_PATH=/var/www/html
+    REPO_PATH=${REPO_PATH}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
+    # Other functions that follow this perform operations on the REPO_PATH.
+    export REPO_PATH
+    sudo rm -rf ${REPO_PATH}
+    sudo mkdir -p ${REPO_PATH}
     ${venv}/bin/python admin/build-package \
-    --destination-path repo \
+    --destination-path ${REPO_PATH} \
     --distribution ${DISTRIBUTION_NAME} \
     /flocker/dist/Flocker-${FLOCKER_VERSION}.tar.gz
 
@@ -480,12 +487,7 @@ common_cli:
     # the acceptance tests look for a package in a yum repository,
     # we provide one by starting a webserver and pointing the tests
     # to look over there
-    REPO_PATH=/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
-    DOC_ROOT=/var/www/html
-    sudo rm -rf ${DOC_ROOT}/${REPO_PATH}
-    sudo mkdir -p ${DOC_ROOT}/${REPO_PATH}
-    sudo cp repo/* ${DOC_ROOT}/${REPO_PATH}
-    cd ${DOC_ROOT}/${REPO_PATH}
+    cd ${REPO_PATH}
     # create a repo on either centos or ubuntu
     case "${DISTRIBUTION_NAME}" in
         ubuntu*)
@@ -502,9 +504,8 @@ common_cli:
     cd -
 
   clean_packages: &clean_packages |
-    # jenkins is unable to clean the git repository as some files are owned
-    # by root, so we make sure we delete the repo files we created
-    sudo rm -rf repo/
+    # Delete the repo files we created
+    sudo rm -rf $REPO_PATH
 
   exit_with_return_code_from_test: &exit_with_return_code_from_test |
     # this is where we make sure we exit with the correct return code
