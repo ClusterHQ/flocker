@@ -551,7 +551,7 @@ def _get_base_url_and_installer_for_distro(distribution, build_server, branch):
         # A development branch has been selected - add its Buildbot repo.
         # Install CentOS packages.
         result_path = posixpath.join(
-            '/results/omnibus/', branch, package)
+            'results/omnibus/', branch, package)
         base_url = urljoin(build_server, result_path)
     else:
         base_url = None

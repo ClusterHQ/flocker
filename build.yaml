@@ -357,7 +357,7 @@ common_cli:
     - ${WORKSPACE}/.hypothesis
 
   run_acceptance_directories_to_delete: &run_acceptance_directories_to_delete
-    - ${WORKSPACE}/repo
+    - ${WORKSPACE}/dist
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -419,13 +419,19 @@ common_cli:
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
     #
+    EXTERNAL_IP=$(\
+        curl \
+            --silent \
+            --header "Metadata-Flavor: Google" \
+            http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+    )
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
     --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(curl -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip) \
+    --build-server ${BUILD_SERVER} \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -438,12 +444,13 @@ common_cli:
     # The admin/run-acceptance-tests will provision a flocker cluster with a
     # single node since the loopback backend doesn't support moving data across
     # hosts.
+    EXTERNAL_IP=$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} --number-of-nodes 1 \
     --provider ${ACCEPTANCE_TEST_PROVIDER} --dataset-backend loopback \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --build-server $BUILD_SERVER \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -452,11 +459,12 @@ common_cli:
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
+    EXTERNAL_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-client-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    --build-server $BUILD_SERVER
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   disable_selinux: &disable_selinux |
@@ -470,9 +478,16 @@ common_cli:
     ${venv}/bin/python setup.py sdist
 
   build_package: &build_package  |
-    # and build a rpm/deb package using docker
+    # Build an RPM / DEB package using docker.
+    # The packages are served by a local nginx server.
+    REPO_BASE=/var/www/html/${BUILD_TAG}
+    REPO_PATH=${REPO_BASE}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
+    # Export for subsequent functions that perform operations on the REPO_BASE
+    # and REPO_PATH.
+    export REPO_BASE REPO_PATH
+    sudo mkdir -p ${REPO_PATH}
     ${venv}/bin/python admin/build-package \
-    --destination-path repo \
+    --destination-path ${REPO_PATH} \
     --distribution ${DISTRIBUTION_NAME} \
     /flocker/dist/Flocker-${FLOCKER_VERSION}.tar.gz
 
@@ -480,12 +495,7 @@ common_cli:
     # the acceptance tests look for a package in a yum repository,
     # we provide one by starting a webserver and pointing the tests
     # to look over there
-    REPO_PATH=/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
-    DOC_ROOT=/var/www/html
-    sudo rm -rf ${DOC_ROOT}/${REPO_PATH}
-    sudo mkdir -p ${DOC_ROOT}/${REPO_PATH}
-    sudo cp repo/* ${DOC_ROOT}/${REPO_PATH}
-    cd ${DOC_ROOT}/${REPO_PATH}
+    cd ${REPO_PATH}
     # create a repo on either centos or ubuntu
     case "${DISTRIBUTION_NAME}" in
         ubuntu*)
@@ -502,9 +512,8 @@ common_cli:
     cd -
 
   clean_packages: &clean_packages |
-    # jenkins is unable to clean the git repository as some files are owned
-    # by root, so we make sure we delete the repo files we created
-    sudo rm -rf repo/
+    # Delete the repo files we created
+    sudo rm -rf $REPO_BASE
 
   exit_with_return_code_from_test: &exit_with_return_code_from_test |
     # this is where we make sure we exit with the correct return code
@@ -533,7 +542,7 @@ common_cli:
   build_docker_image_flocker: &build_docker_image_flocker |
     # Build Flocker Docker image
     BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
-    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
     docker build \
         --rm \
         --tag "${DOCKER_IMAGE}" \
@@ -549,7 +558,7 @@ common_cli:
   build_docker_image_flocker_control: &build_docker_image_flocker_control |
     # Build Flocker-control Docker image
     BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
-    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
     docker build \
         --rm \
         --tag "${DOCKER_IMAGE}" \
@@ -564,7 +573,7 @@ common_cli:
   build_docker_image_flocker_docker_plugin: &build_docker_image_flocker_docker_plugin |
     # Build Flocker-docker-plugin Docker image
     BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
-    REPOSITORY_PATH="results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
     docker build \
         --rm \
         --tag "${DOCKER_IMAGE}" \
