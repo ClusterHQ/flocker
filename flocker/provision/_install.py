@@ -210,7 +210,7 @@ def get_repository_url(distribution, flocker_version):
                         ),
         # The RHEL meta-package points to the Centos-7 packages.
         'rhel-7': "https://{archive_bucket}.s3.amazonaws.com/"
-                    "{key}/clusterhq-release$(rpm -E %dist).centos."
+                    "{key}/clusterhq-release$(rpm -E %dist)."
                     "noarch.rpm".format(
                         archive_bucket=ARCHIVE_BUCKET,
                         key='rhel',
