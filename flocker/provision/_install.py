@@ -704,9 +704,9 @@ def task_install_ssh_key():
     Install the authorized ssh keys of the current user for root as well.
     """
     return sequence([
-        # Allow root SSH login
+        # Allow root SSH login by inserting PermitRootLogin as the first line.
         sudo_from_args([
-            'sed', '-i', '$ a PermitRootLogin yes', '/etc/ssh/sshd_config'
+            'sed', '-i', '1 i PermitRootLogin yes', '/etc/ssh/sshd_config'
         ]),
         sudo_from_args([
             'service', 'sshd', 'restart'
