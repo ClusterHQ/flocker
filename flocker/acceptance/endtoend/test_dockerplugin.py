@@ -182,7 +182,25 @@ class DockerPluginTests(AsyncTestCase):
         container_identifier = self.run_python_container(
             cluster, node.public_address,
             {"host_config": client.create_host_config(
-                binds=["{}:/sizedvoldata".format(volume_name)],
+                binds=[
+                    # Bind mount a fully populated /dev inside the container so
+                    # that we can check the size of *any* device attached to
+                    # the host server, including multi-path /dev/mapper
+                    # devices. By default, /dev in a *privileged* container is
+                    # a tmpfs, containing only device files; not the
+                    # subdirectories and symlinks that udev creates on the host
+                    # when multi-path devices are configured, for example.
+                    # See:
+                    # * https://github.com/docker/docker/blob/v1.12.4/daemon/oci_linux.go#L80)  # noqa
+                    #   (setDevices)
+                    # * https://github.com/opencontainers/runc/blob/v0.1.1/libcontainer/devices/devices_unix.go#L26  # noqa
+                    #   (DeviceFromPath)
+                    # * https://github.com/docker/docker/issues/16160
+                    #   (New devices on host are not exposed to privileged
+                    #   container)
+                    "/dev:/dev",
+                    "{}:/sizedvoldata".format(volume_name),
+                ],
                 port_bindings={http_port: 0},
                 restart_policy={"Name": "always"},
                 privileged=True),
