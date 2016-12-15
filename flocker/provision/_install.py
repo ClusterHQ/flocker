@@ -208,12 +208,12 @@ def get_repository_url(distribution, flocker_version):
                         archive_bucket=ARCHIVE_BUCKET,
                         key='centos',
                         ),
-        # Use CentOS packages for RHEL
-        'rhel-7.2': "https://{archive_bucket}.s3.amazonaws.com/"
+        # The RHEL meta-package points to the Centos-7 packages.
+        'rhel-7': "https://{archive_bucket}.s3.amazonaws.com/"
                     "{key}/clusterhq-release$(rpm -E %dist).centos."
                     "noarch.rpm".format(
                         archive_bucket=ARCHIVE_BUCKET,
-                        key='centos',
+                        key='rhel',
                         ),
 
         # This could hardcode the version number instead of using
