@@ -12,7 +12,7 @@ from yaml import safe_load
 from docutils import nodes
 
 from sphinxcontrib import httpdomain
-from sphinxcontrib.autohttp.flask import translate_werkzeug_rule
+from sphinxcontrib.autohttp.flask_base import translate_werkzeug_rule
 from sphinxcontrib.autohttp.common import http_directive
 
 from sphinx.util.compat import Directive

@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+"""
+This is the entrypoint for ``requirements.Dockerfile``.
+The container must be run with a ``--volume`` argument binding a ``pip``
+requirements file to the path ``/requirements.txt`` inside the container.
+"""
+
+import argparse
+import sys
+from subprocess import check_call
+
+PIP = "/usr/bin/pip"
+
+parser = argparse.ArgumentParser()
+args = parser.parse_args()
+
+check_call(
+    [PIP, "install",
+     "--no-index",
+     "--find-links", "/wheelhouse",
+     "--requirement", "/requirements.txt",
+     "--constraint", "/requirements/constraints.txt"],
+    stdout=sys.stderr
+)
+
+check_call(
+    [PIP, "freeze", "--requirement", "/requirements.txt"],
+)

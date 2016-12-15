@@ -74,10 +74,10 @@ enable=import-error,
        global-at-module-level,
        bad-open-mode,
        redundant-unittest-assert,
+       boolean-datetime,
        # Has common issues with our style due to
        # https://github.com/PyCQA/pylint/issues/210
-       unused-variable,
-       boolean-datetime
+       unused-variable
 
 # Things we'd like to enable someday:
 # redefined-outer-name (requires a bunch of work to clean up our code first)
@@ -361,7 +361,7 @@ init-import=no
 
 # A regular expression matching the name of dummy variables (i.e. expectedly
 # not used).
-dummy-variables-rgx=_$|dummy
+dummy-variables-rgx=^_|^dummy
 
 # List of additional names supposed to be defined in builtins. Remember that
 # you should avoid to define new builtins when possible.

@@ -1,6 +1,6 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 """
-Tests for ``admin.installer``.
+Tests for ``admin.installer._images``.
 """
 import json
 import os
@@ -179,7 +179,6 @@ class PackerConfigureTests(TestCase):
             publish_regions=expected_publish_regions,
             source_ami_map=expected_source_ami_map,
             template=u"docker",
-            distribution=u"ubuntu-14.04",
         )
 
         # Call the performer
@@ -196,7 +195,7 @@ class PackerConfigureTests(TestCase):
         build_region = builder['region']
         build_source_ami = builder['source_ami']
         publish_regions = builder['ami_regions']
-        [provisioner] = packer_configuration["provisioners"]
+        [_provisioner] = packer_configuration["provisioners"]
         self.assertEqual(
             (expected_build_region.value,
              set(c.value for c in expected_publish_regions),
@@ -300,7 +299,6 @@ class PublishInstallerImagesEffectsTests(TestCase):
                     publish_regions=options["regions"],
                     source_ami_map=options["source-ami-map"],
                     template=options["template"],
-                    distribution=options["distribution"],
                 ), lambda intent: configuration_path),
                 (PackerBuild(
                     configuration_path=configuration_path,
@@ -377,7 +375,7 @@ class PublishInstallerImagesIntegrationTests(TestCase):
         ``publish-installer-images`` has a ``--help`` option and includes the
         name of the script in its usage message.
         """
-        returncode, stdout, stderr = self.publish_installer_images(
+        _returncode, stdout, _stderr = self.publish_installer_images(
             args=["--help"]
         )
         self.expectThat(

@@ -9,16 +9,57 @@ You can learn more about where we might be going with future releases by:
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
 
-
 Next Release
 ============
 
-* The :ref:`OpenStack block device backend <openstack-dataset-backend>` will now use Cinder API V2 if it is available.
-  This allows Flocker to manage larger numbers of volumes (> 1000) on OpenStack.
+* Ubuntu 15.10 packages are no longer generated.
+* References to the Flocker container API and the ``flocker-container-agent`` have been removed from the documentation.
+* Fixed bug in OpenStack Cinder backend where nodes with floating IPs could not be recognized.
 
+Previous Releases
+=================
 
-This Release
-============
+.. contents::
+   :local:
+   :backlinks: none
+   :depth: 2
+
+v1.15.0
+-------
+* ``flocker-container-agent``, which has been deprecated since Flocker 1.10.1, no longer manipulates ``iptables`` firewall rules.
+  It will no longer create firewall rules to allow access to ports which have been exposed on Docker containers that it starts.
+  And it will no longer maintain NAT routing rules to allow access to exposed ports from other nodes in the cluster.
+
+v1.14.0
+-------
+* Flocker can now be installed on Ubuntu 16.04.
+* Flocker and the Flocker Docker Plugin are now compatible with Docker 1.12.
+  Flocker 1.14.0 has been tested with Docker 1.12.0.
+* The container API now accepts a swappiness parameter to control a container’s memory swappiness behavior.
+* **Deprecated**: The installation of Flocker client tools on Ubuntu 15.10 is deprecated.
+  The Ubuntu 15.10 client installation instructions have been removed.
+  The Ubuntu 15.10 packages will be removed in the next release.
+* **Deprecated**: The "Labs Installer" from the `Unofficial Flocker Tools repository <https://github.com/ClusterHQ/unofficial-flocker-tools>`_ is deprecated and the documentation for this installation mechanism has been removed.
+
+v1.13.0
+-------
+
+* The control service now uses a diff algorithm to exchange configuration changes and state changes with convergence agents.
+  This significantly reduces the CPU and network bandwidth whilst converging on configuration changes.
+* The dataset agent now has backend support for :ref:`Pure Storage <pure-storage-backend>`.
+* The dataset agent now has backend support for :ref:`CoprHD <coprhd-backend>`.
+* The ``flocker-deploy`` command line utility, which was deprecated in 1.11.0, has now been removed.
+* All the Flocker Python library requirements have been updated to the latest stable versions.
+
+v1.12.0
+-------
+
+* The OpenStack Cinder backend for Flocker will now use the Cinder version 2 API if it is available.
+  This allows Flocker to work in OpenStack clusters where there are more than 1000 Cinder volumes.
+* Flocker can now be :ref:`installed on Redhat Enterprise Linux 7 <rhel-7-install-standalone-flocker>`.
+* The Flocker control service and dataset agents now use less CPU and network bandwidth whilst converging on configuration changes.
+* The Flocker dataset agent will now reconnect to the control service within 30 seconds, even after an extended disconnection.
+* The Flocker documentation search engine is now faster and generates more relevant results.
 
 v1.11.0
 -------
@@ -27,7 +68,6 @@ v1.11.0
 * Flocker is now significantly more efficient.
   The control and agent services use far less CPU time when idle and far less CPU time when converging on a configuration change.
   This allows larger clusters containing more datasets and supporting more frequent configuration changes.
-* Flocker can now be :ref:`installed on Redhat Enterprise Linux 7 <rhel-7-install-standalone-flocker>`.
 * The container agent is now optional and can be safely disabled if you don't expect to be using Flocker's deprecated container API or ``flocker-deploy``.
   The :ref:`Flocker plugin for Docker<plugin>` allows you to use Flocker from Docker without using Flocker's container API.
 * The dataset agent now has backend support for :ref:`Open vStorage <open-vstorage-backend>`.
@@ -37,15 +77,6 @@ v1.11.0
   This was particularly likely to occur on AWS.
 * The Flocker client tools can once again be installed on OS X 10.10.
   A regression in the Flocker Homebrew tap file has been fixed.
-
-
-Previous Releases
-=================
-
-.. contents::
-   :local:
-   :backlinks: none
-   :depth: 2
 
 v1.10.2
 -------

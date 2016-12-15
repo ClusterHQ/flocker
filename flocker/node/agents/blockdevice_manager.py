@@ -7,9 +7,12 @@ This controls actions such as formatting and mounting a blockdevice.
 """
 
 import psutil
-from subprocess import CalledProcessError, check_output, STDOUT
+from subprocess import CalledProcessError
 
-from zope.interface import Interface, implementer
+from zope.interface import Attribute, Interface, implementer
+from zope.interface.interface import (
+    adapter_hooks as zope_interface_adapter_hooks
+)
 
 from pyrsistent import PClass, field
 
@@ -17,6 +20,10 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import ValueConstant, Values
 
 from characteristic import attributes
+
+from ...common.process import run_process
+from ...common import temporary_directory
+from ...common._filepath import IFilePathExtended
 
 
 class Permissions(Values):
@@ -218,63 +225,30 @@ class IBlockDeviceManager(Interface):
         """
 
 
-class _CommandResult(PClass):
-    """
-    Helper object to represent the result of a command.
-
-    :ivar bool succeeded: True if the command was successful otherwise false.
-    :ivar unicode error_message: Message that would be useful to output on
-        failure. Only set if the command did not succeed.
-    """
-    succeeded = field(type=bool)
-    error_message = field(type=unicode, mandatory=False)
-
-
-def _run_command(command_arg_list):
-    """
-    Helper wrapper to run a command and capture STDOUT and STDERR if the
-    command fails. Used for common code in the implementation of many methods
-    of the interface.
-
-    :param command_arg_list: Command arguments that will be passed directly as
-        the first argument of check_output.
-
-    :returns _CommandResult: The representation of the result of the command.
-    """
-    try:
-        check_output(command_arg_list, stderr=STDOUT)
-    except CalledProcessError as e:
-        return _CommandResult(
-            succeeded=False,
-            error_message=u"\n".join([str(e), e.output]))
-    return _CommandResult(succeeded=True)
-
-
 @implementer(IBlockDeviceManager)
 class BlockDeviceManager(PClass):
     """
     Real implementation of IBlockDeviceManager.
     """
-
     def make_filesystem(self, blockdevice, filesystem):
-        result = _run_command([
-            b"mkfs", b"-t", filesystem.encode("ascii"),
-            # This is ext4 specific, and ensures mke2fs doesn't ask
-            # user interactively about whether they really meant to
-            # format whole device rather than partition. It will be
-            # removed once upstream bug is fixed. See FLOC-2085.
-            b"-F",
-            blockdevice.path
-        ])
-        if not result.succeeded:
+        try:
+            run_process([
+                b"mkfs", b"-t", filesystem.encode("ascii"),
+                # This is ext4 specific, and ensures mke2fs doesn't ask
+                # user interactively about whether they really meant to
+                # format whole device rather than partition. It will be
+                # removed once upstream bug is fixed. See FLOC-2085.
+                b"-F",
+                blockdevice.path
+            ])
+        except CalledProcessError as e:
             raise MakeFilesystemError(blockdevice=blockdevice,
-                                      source_message=result.error_message)
+                                      source_message=e.output)
 
     def has_filesystem(self, blockdevice):
         try:
-            check_output(
-                [b"blkid", b"-p", b"-u", b"filesystem", blockdevice.path],
-                stderr=STDOUT,
+            run_process(
+                [b"blkid", b"-p", b"-u", b"filesystem", blockdevice.path]
             )
         except CalledProcessError as e:
             # According to the man page:
@@ -294,16 +268,18 @@ class BlockDeviceManager(PClass):
         return True
 
     def mount(self, blockdevice, mountpoint):
-        result = _run_command([b"mount", blockdevice.path, mountpoint.path])
-        if not result.succeeded:
+        try:
+            run_process([b"mount", blockdevice.path, mountpoint.path])
+        except CalledProcessError as e:
             raise MountError(blockdevice=blockdevice, mountpoint=mountpoint,
-                             source_message=result.error_message)
+                             source_message=e.output)
 
     def unmount(self, blockdevice):
-        result = _run_command([b"umount", blockdevice.path])
-        if not result.succeeded:
+        try:
+            run_process([b"umount", blockdevice.path])
+        except CalledProcessError as e:
             raise UnmountError(blockdevice=blockdevice,
-                               source_message=result.error_message)
+                               source_message=e.output)
 
     def get_mounts(self):
         mounts = psutil.disk_partitions()
@@ -312,24 +288,269 @@ class BlockDeviceManager(PClass):
                 for mount in mounts)
 
     def bind_mount(self, source_path, mountpoint):
-        result = _run_command(
-            [b"mount", "--bind", source_path.path, mountpoint.path])
-        if not result.succeeded:
+        try:
+            run_process(
+                [b"mount", "--bind", source_path.path, mountpoint.path])
+        except CalledProcessError as e:
             raise BindMountError(source_path=source_path,
                                  mountpoint=mountpoint,
-                                 source_message=result.error_message)
+                                 source_message=e.output)
 
     def remount(self, mountpoint, permissions):
-        result = _run_command([
-            b"mount", "-o", "remount,%s" % permissions.value, mountpoint.path])
-        if not result.succeeded:
+        try:
+            run_process([
+                b"mount", "-o", "remount,%s" % permissions.value,
+                mountpoint.path])
+        except CalledProcessError as e:
             raise RemountError(mountpoint=mountpoint,
                                permissions=permissions,
-                               source_message=result.error_message)
+                               source_message=e.output)
 
     def make_tmpfs_mount(self, mountpoint):
-        result = _run_command(
-            [b"mount", "-t", "tmpfs", "tmpfs", mountpoint.path])
-        if not result.succeeded:
+        try:
+            run_process(
+                [b"mount", "-t", "tmpfs", "tmpfs", mountpoint.path])
+        except CalledProcessError as e:
             raise MakeTmpfsMountError(mountpoint=mountpoint,
-                                      source_message=result.error_message)
+                                      source_message=e.output)
+
+
+def _unmount(path, idempotent=False):
+    """
+    Unmount the path (directory or device path).
+    """
+    try:
+        # Do lazy umount.
+        run_process(['umount', '-l', path.path])
+    except CalledProcessError as e:
+        # If idempotent, swallow the case where the mountpoint is no longer
+        # mounted.
+        # umount on Ubuntu 14.04 returns 1 in this case. On newer OS the return
+        # code is 32.
+        if idempotent and e.returncode in (1, 32):
+            pass
+        else:
+            raise UnmountError(
+                blockdevice=path.path,
+                source_message=e.output,
+            )
+
+
+class IMountableFilesystem(Interface):
+    """
+    An filesystem identifier that can be supplied to ``mount``.
+    """
+    def identifier():
+        """
+        :returns: ``unicode`` An identifier which can be understood by the
+        ``mount`` command.
+        """
+
+    def device_path():
+        """
+        :returns: ``FilePath`` A device on the filesystem.
+        """
+
+
+class IMountedFilesystem(Interface):
+    """
+    Represents a mounted filesystem which can be unmounted.  If used as a
+    context manager, the mountpoint path will be made available on __enter__
+    and the filesystem will be unmounted on __exit__.
+    """
+    mountpoint = Attribute("An ``IMountpoint`` object.")
+
+    def unmount():
+        """
+        """
+
+    def __enter__():
+        """
+        Enter the context of a context manager.
+        """
+
+    def __exit__(exc_type, exc_value, traceback):
+        """
+        Exit the context of a context manager and unmount.
+        """
+
+
+def interface_field(interfaces, **field_kwargs):
+    """
+    A ``PClass`` field which checks that the assigned value provides all the
+    ``interfaces``.
+
+    :param tuple interfaces: The ``Interface`` that a value must provide.
+    """
+    if not isinstance(interfaces, tuple):
+        raise TypeError(
+            "The ``interfaces`` argument must be a tuple. "
+            "Got: {!r}".format(interfaces)
+        )
+
+    original_invariant = field_kwargs.pop("invariant", None)
+
+    def invariant(value):
+        error_messages = []
+        if original_invariant is not None:
+            (original_invariant_result,
+             _original_invariant_message) = original_invariant(value)
+            if original_invariant_result:
+                error_messages.append(original_invariant_result)
+
+        missing_interfaces = []
+        for interface in interfaces:
+            if not interface.providedBy(value):
+                missing_interfaces.append(interface.getName())
+        if missing_interfaces:
+            error_messages.append(
+                "The value {!r} "
+                "did not provide these required interfaces: {}".format(
+                    value,
+                    ", ".join(missing_interfaces)
+                )
+            )
+        if error_messages:
+            return (False, "\n".join(error_messages))
+        else:
+            return (True, "")
+    field_kwargs["invariant"] = invariant
+    return field(**field_kwargs)
+
+
+@implementer(IMountableFilesystem)
+class DevicePathFilesystem(PClass):
+    """
+    A filesystem to be mounted by device path.
+    """
+    path = field(type=FilePath)
+
+    def identifier(self):
+        return self.path.path
+
+    def device_path(self):
+        return self.path
+
+
+@implementer(IMountableFilesystem)
+class LabelledFilesystem(PClass):
+    """
+    A filesystem to be mounted by LABEL.
+    """
+    label = field(type=unicode)
+
+    def identifier(self):
+        return 'LABEL=%s' % (self.label.encode('ascii'),)
+
+    def device_path(self):
+        return FilePath("/dev/disk/by-label").child(self.label)
+
+
+IMOUNTABLE_FILESYSTEM_ADAPTERS = {
+    # Detect FilePath like objects
+    IFilePathExtended.providedBy: lambda obj: DevicePathFilesystem(path=obj),
+}
+
+
+def _adapt(iface, obj):
+    """
+    Adapt the ``filesystem`` argument of ``mount`` to ``IMountableFilesystem``.
+    """
+    for wrapper_test, wrapper in IMOUNTABLE_FILESYSTEM_ADAPTERS.items():
+        if wrapper_test(obj):
+            return wrapper(obj)
+
+zope_interface_adapter_hooks.append(_adapt)
+
+
+@implementer(IMountedFilesystem)
+class MountedFileSystem(PClass):
+    """
+    A directory where a filesystem is mounted.
+    """
+    mountpoint = interface_field((IFilePathExtended,), mandatory=True)
+
+    def unmount(self):
+        _unmount(self.mountpoint)
+
+    def __enter__(self):
+        return self.mountpoint
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.unmount()
+
+
+def mount(filesystem, mountpoint, options=None):
+    """
+    Mount ``filesystem`` at ``mountpoint`` with ``options``.
+
+    :param IMountableFilesystem filesystem: An object by which to identify the
+        filesystem.
+    :param IFilePathExtended mountpoint: A directory at which to mount.
+    :param list options: A list of --option parameters for the mount command.
+    :returns: ``IMountedFilesystem``.
+    """
+    # Adapt the supplied type. Allows a FilePath to be supplied instead.
+    filesystem = IMountableFilesystem(filesystem)
+    command = ["mount"]
+    if options:
+        command.extend(["--options", ",".join(options)])
+    command.extend([filesystem.identifier(), mountpoint.path])
+    try:
+        run_process(command)
+    except CalledProcessError as e:
+        raise MountError(
+            blockdevice=filesystem.device_path(),
+            mountpoint=mountpoint,
+            source_message=e.output,
+        )
+    return MountedFileSystem(
+        mountpoint=mountpoint
+    )
+
+
+@implementer(IMountedFilesystem)
+class TemporaryMountedFilesystem(PClass):
+    """
+    A wrapper which will remove the mountpoint directory when it has been
+    unmounted.
+    """
+    fs = interface_field((IMountedFilesystem,), mandatory=True)
+
+    @property
+    def mountpoint(self):
+        return self.fs.mountpoint
+
+    def unmount(self):
+        self.fs.unmount()
+        self.fs.mountpoint.remove()
+
+    def __enter__(self):
+        return self.fs.__enter__()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.unmount()
+
+
+def temporary_mount(filesystem, options=None):
+    """
+    Mount ``filesystem`` at a temporary mountpoint with ``options``.
+    A temporary mountpoint directory will be created.
+    It will be removed if the mount fails and when the mounted filesystem is
+    unmounted.
+
+    :param IMountableFilesystem filesystem: An object by which to identify the
+        filesystem.
+    :param list options: A list of --option parameters for the mount command.
+    :returns: ``IMountedFilesystem``.
+    """
+    mountpoint = temporary_directory()
+    try:
+        mounted_fs = mount(filesystem, mountpoint, options=options)
+    except:
+        mountpoint.remove()
+        raise
+
+    return TemporaryMountedFilesystem(
+        fs=mounted_fs
+    )

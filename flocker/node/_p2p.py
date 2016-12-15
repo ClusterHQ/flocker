@@ -276,9 +276,13 @@ class P2PManifestationDeployer(object):
         local_state = cluster_state.get_node(self.node_uuid)
         phases = []
 
+        local_applications_vector = None
+        if local_state.applications:
+            local_applications_vector = local_state.applications.values()
+
         not_in_use_datasets = NotInUseDatasets(
             node_uuid=self.node_uuid,
-            local_applications=local_state.applications,
+            local_applications=local_applications_vector,
             leases=configuration.leases,
         )
 
@@ -343,17 +347,17 @@ def find_dataset_changes(uuid, current_state, desired_state):
          order to match desired configuration.
     """
     uuid_to_hostnames = {node.uuid: node.hostname
-                         for node in current_state.nodes}
+                         for node in current_state.nodes.values()}
     desired_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
-                        for node in desired_state.nodes}
+                        for node in desired_state.nodes.values()}
     current_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             # We pretend ignorance is equivalent to no
                             # datasets; this is wrong. See FLOC-2060.
                             in (node.manifestations or {}).values())
-                        for node in current_state.nodes}
+                        for node in current_state.nodes.values()}
 
     local_desired_datasets = set(
         dataset for dataset in desired_datasets.get(uuid, set())

@@ -6,7 +6,7 @@ set -ex
 : ${s3_bucket:?}
 
 # Get expect to autofill openssl inputs.
-sudo apt-get install -y expect
+retry_command apt-get install -y expect
 
 # Get CA from S3 bucket.
 DOCKER_CERT_HOME="/root/.docker"
@@ -40,17 +40,19 @@ chmod +x ${DOCKER_CERT_HOME}/createnode.exp
 ${DOCKER_CERT_HOME}/createnode.exp
 
 # Set Docker defaults to enable TLS, and tag the node with ``flocker-node`` number.
-cat > /etc/default/docker << EOF
-DOCKER_TLS_VERIFY=1
-DOCKER_CERT_PATH=/root/.docker
-DOCKER_OPTS="--tlsverify --tlscacert=${DOCKER_CERT_HOME}/ca.pem --tlscert=${DOCKER_CERT_HOME}/cert.pem --tlskey=${DOCKER_CERT_HOME}/key.pem -H unix:///var/run/docker.sock -H=0.0.0.0:2375 --label flocker-node=${node_number}"
+mkdir -p /etc/systemd/system/docker.service.d
+cat > /etc/systemd/system/docker.service.d/override.conf << EOF
+[Service]
+ExecStart=
+ExecStart=/usr/bin/docker daemon --tlsverify --tlscacert=${DOCKER_CERT_HOME}/ca.pem --tlscert=${DOCKER_CERT_HOME}/cert.pem --tlskey=${DOCKER_CERT_HOME}/key.pem -H unix:///var/run/docker.sock -H=0.0.0.0:2375 --label flocker-node=${node_number}
 EOF
 
 # Remove the docker machine ID (since this is a cloned AMI).
 rm -f /etc/docker/key.json
 
 # Restart Docker to enable new default settings.
-service docker restart
+systemctl daemon-reload
+systemctl restart docker
 
 # Wait because Docker is not ready to handle requests immediately.
 sleep 10

@@ -607,8 +607,7 @@ class DiagnosticsOptions(Options):
     """
     longdesc = """\
     Exports Flocker log files and diagnostic data. Run this script as root, on
-    an Ubuntu 14.04 or Centos 7 server where the clusterhq-flocker-node package
-    has been installed.
+    a server where the clusterhq-flocker-node package has been installed.
     """
 
     synopsis = "Usage: flocker-diagnostics [OPTIONS]"
@@ -633,7 +632,7 @@ class DiagnosticsOptions(Options):
             raise UsageError(
                 "flocker-diagnostics "
                 "is not supported on this distribution ({!r}).\n"
-                "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
+                "See https://flocker-docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
                 "for alternative ways to export Flocker logs "
                 "and diagnostic data.\n".format(distribution_name)
             )

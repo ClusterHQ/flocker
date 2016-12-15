@@ -15,9 +15,6 @@ import itertools
 import boto3
 
 from botocore.exceptions import ClientError, EndpointConnectionError
-from botocore.vendored.requests.packages.urllib3.contrib.pyopenssl import (
-    extract_from_urllib3,
-)
 
 # There is no boto3 equivalent of this yet.
 # See https://github.com/boto/boto3/issues/313
@@ -53,13 +50,8 @@ from ._logging import (
     AWS_ACTION, NO_AVAILABLE_DEVICE,
     NO_NEW_DEVICE_IN_OS, WAITING_FOR_VOLUME_STATUS_CHANGE,
     BOTO_LOG_HEADER, IN_USE_DEVICES, CREATE_VOLUME_FAILURE,
-    BOTO_LOG_RESULT, VOLUME_BUSY_MESSAGE,
+    BOTO_LOG_RESULT, VOLUME_BUSY_MESSAGE, INVALID_FLOCKER_CLUSTER_ID,
 )
-
-# Don't use pyOpenSSL in urllib3 - it causes an ``OpenSSL.SSL.Error``
-# exception when we try an API call on an idled persistent connection.
-# See https://github.com/boto/boto3/issues/220
-extract_from_urllib3()
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
@@ -829,7 +821,19 @@ def _is_cluster_volume(cluster_id, ebs_volume):
             if tag['Key'] == CLUSTER_ID_LABEL
         ]
         if actual_cluster_id:
-            actual_cluster_id = UUID(actual_cluster_id.pop())
+            # There should only be one Tag with key flocker-cluster-id.
+            [actual_cluster_id] = actual_cluster_id
+            try:
+                actual_cluster_id = UUID(hex=actual_cluster_id)
+            except ValueError:
+                # If we can't parse the cluster id value as a UUID, assume
+                # that it's not part of our cluster instead of stopping the
+                # iteration
+                INVALID_FLOCKER_CLUSTER_ID(
+                    flocker_cluster_id=actual_cluster_id,
+                    volume_id=ebs_volume.id,
+                ).write()
+                return False
             if actual_cluster_id == cluster_id:
                 return True
     return False

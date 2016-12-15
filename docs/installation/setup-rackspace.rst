@@ -13,7 +13,7 @@ You'll need to setup at least two nodes.
 
    * Visit https://mycloud.rackspace.com.
    * Click "Create Server".
-   * Choose a supported Linux distribution (either CentOS 7 or Ubuntu 14.04) as your image.
+   * Choose a supported Linux distribution (either RHEL 7, CentOS 7, Ubuntu 16.04 or Ubuntu 14.04) as your image.
    * Choose a Flavor.
      We recommend at least "8 GB General Purpose v1".
    * Add your SSH key.

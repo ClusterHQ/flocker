@@ -111,7 +111,7 @@ class DiscoveredDataset(PClass):
         mandatory=True,
     )
     dataset_id = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int)
+    maximum_size = field(type=(int, long))
     blockdevice_id = field(type=unicode, mandatory=True)
     device_path = field(FilePath)
     mount_point = field(FilePath)
@@ -144,7 +144,7 @@ class DesiredDataset(PClass):
         mandatory=True,
     )
     dataset_id = field(type=UUID, mandatory=True)
-    maximum_size = field(type=int)
+    maximum_size = field(type=(int, long))
     metadata = pmap_field(
         key_type=unicode,
         value_type=unicode,
@@ -484,7 +484,7 @@ class BlockDeviceVolume(PClass):
     :ivar UUID dataset_id: The Flocker dataset ID associated with this volume.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
-    size = field(type=int, mandatory=True)
+    size = field(type=(int, long), mandatory=True)
     attached_to = field(
         type=(unicode, type(None)), initial=None, mandatory=True
     )
@@ -825,7 +825,7 @@ class CreateBlockDeviceDataset(PClass):
     :ivar Dataset dataset: The dataset for which to create a block device.
     """
     dataset_id = field(UUID, mandatory=True)
-    maximum_size = field(int, mandatory=True)
+    maximum_size = field(type=(int, long), mandatory=True)
     metadata = pmap_field(unicode, unicode)
 
     @classmethod
@@ -1047,7 +1047,7 @@ class IBlockDeviceAPI(Interface):
 
     * The factory function that creates this instance will be called with
       a unique cluster ID (see
-      https://docs.clusterhq.com/en/latest/gettinginvolved/plugins/building-driver.html).
+      https://flocker-docs.clusterhq.com/en/latest/gettinginvolved/plugins/building-driver.html).
       If possible it's worth creating volumes with that cluster ID stored
       as metadata, so you can filter results from the backend and only
       include relevant volumes. This allows sharing the same storage
@@ -1988,9 +1988,12 @@ class BlockDeviceDeployer(PClass):
         local_node_state = cluster_state.get_node(self.node_uuid,
                                                   hostname=self.hostname)
 
+        local_applications = None
+        if local_node_state.applications is not None:
+            local_applications = local_node_state.applications.values()
         desired_datasets = self._calculate_desired_state(
             configuration=configuration,
-            local_applications=local_node_state.applications,
+            local_applications=local_applications,
             local_datasets=local_state.datasets,
         )
 

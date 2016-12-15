@@ -41,7 +41,8 @@ from ._ssh import sudo_from_args, run_remotely
 
 # Defaults for some of the instance construction parameters.
 _GCE_MINIMUM_DISK_SIZE_GIB = 10
-_GCE_INSTANCE_TYPE = u"n1-standard-1"
+# 2 CPUs and 7.5 GiB of RAM, similar to m3.large on AWS.
+_GCE_INSTANCE_TYPE = u"n1-standard-2"
 _GCE_ACCEPTANCE_USERNAME = u"flocker-acceptance"
 
 # The network used must have firewall rules such that the node running
@@ -148,7 +149,11 @@ GCE_DISTRIBUTION_TO_IMAGE_MAP = {
     "ubuntu-14.04": _DistributionImageParams(
         project=u"ubuntu-os-cloud",
         image_name_prefix=u"ubuntu-1404",
-    )
+    ),
+    "ubuntu-16.04": _DistributionImageParams(
+        project=u"ubuntu-os-cloud",
+        image_name_prefix=u"ubuntu-1604",
+    ),
 }
 
 
@@ -189,7 +194,7 @@ def _create_gce_instance_config(instance_name,
                                 project,
                                 zone,
                                 image,
-                                machine_type=u"n1-standard-1",
+                                machine_type=_GCE_INSTANCE_TYPE,
                                 disk_size=_GCE_MINIMUM_DISK_SIZE_GIB,
                                 description=u"",
                                 tags=frozenset(),
@@ -204,7 +209,7 @@ def _create_gce_instance_config(instance_name,
         configuration for.
     :param unicode zone: The name of the gce zone to spin the instance up in.
     :param unicode machine_type: The name of the machine type, e.g.
-        'n1-standard-1'.
+        'n1-standard-2'.
     :param unicode image: The name of the image to base the disk off of.
     :param login_credentials: An iterable of :class:`_LoginCredentials` to be
         installed on the image.

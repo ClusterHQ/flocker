@@ -1,0 +1,3 @@
+hypothesis==3.6.0
+## The following requirements were added by pip freeze:
+enum34==1.1.6

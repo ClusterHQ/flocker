@@ -25,7 +25,7 @@ from ..packaging import (
     BuildPackage, BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
-    Dependency, build_in_docker, DockerBuild, DockerRun,
+    Dependency, build_in_docker,
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE, PACKAGE_DOCKER_PLUGIN,
     make_dependencies, available_distributions,
     LintPackage,
@@ -199,7 +199,7 @@ def assert_deb_content(test_case, expected_paths, package_path):
             continue
         actual_paths.add(FilePath('/').descendant(f.segmentsFrom(output_dir)))
 
-    test_case.assertEqual(expected_paths, actual_paths)
+    test_case.assertEqual(set(), expected_paths.difference(actual_paths))
 
 
 def assert_deb_headers(test_case, expected_headers, package_path):
@@ -670,9 +670,6 @@ class BuildPackageTests(TestCase):
             expected_prefix.child('Foo'),
             expected_prefix.child('Bar'),
             FilePath('/other/file'),
-            # This is added automatically by fpm despite not supplying the
-            # --deb-changelog option
-            FilePath('/usr/share/doc/foobar/changelog.Debian.gz'),
         ])
         expected_name = 'FooBar'.lower()
         expected_epoch = b'3'
@@ -769,7 +766,7 @@ class LintPackageTests(TestCase):
             vendor="Acme Corporation",
             maintainer='Someone <noreply@example.com>',
             architecture="all",
-            description="Description\n\nExtended",
+            description="Test Package\n\nThe description.",
             category="none",
             dependencies=[]
         ).run()
@@ -898,10 +895,10 @@ class OmnibusPackageBuilderTests(TestCase):
             steps=(
                 # clusterhq-python-flocker steps
                 InstallVirtualEnv(virtualenv=virtualenv),
-                InstallApplication(virtualenv=virtualenv,
-                                   package_uri='pip==8.1.1'),
-                InstallApplication(virtualenv=virtualenv,
-                                   package_uri='-r/flocker/requirements.txt'),
+                InstallApplication(
+                    virtualenv=virtualenv,
+                    package_uri='-r/flocker/requirements/flocker.txt'
+                ),
                 InstallApplication(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path),
                     package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
@@ -948,8 +945,6 @@ class OmnibusPackageBuilderTests(TestCase):
                 # clusterhq-flocker-cli steps
                 CreateLinks(
                     links=[
-                        (FilePath('/opt/flocker/bin/flocker-deploy'),
-                         flocker_cli_path),
                         (FilePath('/opt/flocker/bin/flocker'),
                          flocker_cli_path),
                         (FilePath('/opt/flocker/bin/flocker-ca'),
@@ -1386,79 +1381,6 @@ class BuildScriptTests(TestCase):
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
-
-
-class BuildInDockerFunctionTests(TestCase):
-    """
-    Tests for ``build_in_docker``.
-    """
-    def test_steps(self):
-        """
-        ``build_in_docker`` returns a ``BuildSequence`` comprising
-        ``DockerBuild`` and ``DockerRun`` instances.
-        """
-        supplied_distribution = 'Foo'
-        expected_tag = 'clusterhq/build-%s' % (supplied_distribution,)
-        supplied_top_level = FilePath(self.mktemp())
-        expected_build_directory = supplied_top_level.descendant(
-            ['admin', 'build_targets', supplied_distribution])
-        expected_build_directory.makedirs()
-        expected_build_directory.sibling('requirements.txt').setContent('')
-        supplied_destination_path = FilePath('/baz/qux')
-        expected_volumes = {
-            FilePath('/output'): supplied_destination_path,
-            FilePath('/flocker'): supplied_top_level,
-        }
-        expected_package_uri = 'http://www.example.com/foo/bar/whl'
-
-        assert_equal_steps(
-            test_case=self,
-            expected=BuildSequence(
-                steps=[
-                    DockerBuild(
-                        tag=expected_tag,
-                        build_directory=expected_build_directory
-                    ),
-                    DockerRun(
-                        tag=expected_tag,
-                        volumes=expected_volumes,
-                        command=[expected_package_uri]
-                    ),
-                ]
-            ),
-            actual=build_in_docker(
-                destination_path=supplied_destination_path,
-                distribution=supplied_distribution,
-                top_level=supplied_top_level,
-                package_uri=expected_package_uri,
-            )
-        )
-
-    def test_copies_requirements(self):
-        """
-        A requirements file is copied into the build directory.
-        """
-        supplied_distribution = 'Foo'
-        supplied_top_level = FilePath(self.mktemp())
-        expected_build_directory = supplied_top_level.descendant(
-            ['admin', 'build_targets', supplied_distribution])
-        expected_build_directory.makedirs()
-        requirements = 'some_requirement'
-        expected_build_directory.sibling('requirements.txt').setContent(
-            requirements)
-        supplied_destination_path = FilePath('/baz/qux')
-        expected_package_uri = 'http://www.example.com/foo/bar/whl'
-        build_in_docker(
-            destination_path=supplied_destination_path,
-            distribution=supplied_distribution,
-            top_level=supplied_top_level,
-            package_uri=expected_package_uri
-        )
-
-        self.assertEqual(
-            requirements,
-            expected_build_directory.child('requirements.txt').getContent()
-        )
 
 
 class MakeDependenciesTests(TestCase):

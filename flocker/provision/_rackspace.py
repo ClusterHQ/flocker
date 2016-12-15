@@ -51,7 +51,7 @@ def provision_rackspace(node, package_source, distribution, variants):
 IMAGE_NAMES = {
     'centos-7': u'CentOS 7 (PVHVM)',
     'ubuntu-14.04': u'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)',
-    'ubuntu-15.10': u'Ubuntu 15.10 (Wily Werewolf) (PVHVM)',
+    'ubuntu-16.04': u'Ubuntu 16.04 LTS (Xenial Xerus) (PVHVM)',
 }
 
 

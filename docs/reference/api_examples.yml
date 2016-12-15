@@ -438,6 +438,30 @@
 
 -
   id:
+    "create container with swappiness"
+
+  doc: |
+    Create a new container with swappiness, in this example 20.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"node_uuid": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "swappiness": 20}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"node_uuid": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "swappiness": 20}
+
+-
+  id:
     "create container with memory limit"
 
   doc: |

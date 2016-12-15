@@ -26,7 +26,7 @@ from ...node import backends
 
 from ..testtools import (
     require_cluster, require_moving_backend, create_dataset,
-    skip_backend, get_backend_api, verify_socket,
+    skip_backend, skip_distribution, get_backend_api, verify_socket,
     get_default_volume_size, ACCEPTANCE_TEST_TIMEOUT
 )
 
@@ -93,14 +93,23 @@ class DatasetAPITests(AsyncTestCase):
             branch=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BRANCH'],
             build_server=os.environ['FLOCKER_ACCEPTANCE_PACKAGE_BUILD_SERVER'])
 
-    @skip_backend(
-        unsupported={backends.LOOPBACK},
-        reason="Does not maintain compute_instance_id across restarting "
-               "flocker (and didn't as of most recent release).")
-    @skip_backend(
-        unsupported={backends.GCE},
+    @skip_distribution(
+        unsupported={'ubuntu-16.04'},
         # XXX: FLOC-4297: Enable this after the next marketing release.
-        reason="GCE was not available during the most recent release.")
+        reason=(
+            "Ubuntu-16.04 packages cannot be downgraded "
+            "until the next release."
+        ),
+    )
+    @skip_backend(
+        unsupported={backends.LOOPBACK, backends.OPENSTACK},
+        reason=(
+            "Loopback backend does not maintain compute_instance_id across "
+            "restarting flocker (and didn't as of most recent release). "
+            "OpenStack backend (as of 1.15.0) cannot reliably identify "
+            "the compute node if it has floating IP addresses."
+        )
+    )
     @run_test_with(async_runner(timeout=timedelta(minutes=6)))
     @require_cluster(1)
     def test_upgrade(self, cluster):

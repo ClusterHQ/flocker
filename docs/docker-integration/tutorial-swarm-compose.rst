@@ -25,22 +25,22 @@ What You'll Need
 * A Client machine with Docker Compose and access to the Swarm master.
 
   * If you used the :ref:`CloudFormation installer <cloudformation>`:
-   
+
     * The Client EC2 instance is preconfigured with Docker Compose.
       Use the following command to ssh in:
-            
+
       .. prompt:: bash $
 
           ssh -i <KeyPath> ubuntu@<ClientNodeIP>
 
     * ``<KeyPath>`` is the path on your machine to the ``.pem`` file you downloaded from AWS, for example: ``~/Downloads/flocker-test.pem``.
-   
+
     * You will need ``<ClientNodeIP>``, ``<ControlNodeIP>``, ``<AgentNode1IP>`` and ``<AgentNode2IP>`` from the CloudFormation Outputs tab.
-	
+
     * The rest of this tutorial will assume you are logged into the Client instance.
 
   * If you did not use the CloudFormation installer:
-    
+
     * Install `Docker Compose <https://docs.docker.com/compose/install/>`_ on any machine which has network access to the Swarm master that you created when you installed Swarm manually.
 
     * The rest of this tutorial will assume you are logged into the machine you installed Compose on.
@@ -92,22 +92,6 @@ The Docker Compose files both have the same layout, as illustrated below, except
 
   * Flocker will automatically provision this volume on-demand if it doesn't already exist.
 
-Step 2.1: Optionally specify size and profile
----------------------------------------------
-
-The default size and :ref:`storage profile <storage-profiles>` when you run ``docker-compose up`` are 75G and silver.
-
-If you want to specify a custom size or profile for the volume before creating it, run the following:
-
-.. prompt:: bash $
-
-   docker volume create -d flocker -o size=10G -o profile=bronze --name=postgres # expect "postgres"
-
-.. note:: At this point if you gave the cluster a Volume Hub key, check the `Volume Hub <https://volumehub.clusterhq.com>`_ and you should be able to see the volume created but not used by any containers yet.
-
-Step 2.2: Deploying the app
----------------------------
-
 Now deploy the app by running:
 
 .. prompt:: bash $
@@ -130,8 +114,7 @@ Now we will demonstrate stopping the app on one machine and starting it on the o
 
 .. prompt:: bash $
 
-   docker-compose -f flocker-swarm-tutorial-node1.yml stop
-   docker-compose -f flocker-swarm-tutorial-node1.yml rm -f
+   docker-compose -f flocker-swarm-tutorial-node1.yml down
    docker-compose -f flocker-swarm-tutorial-node2.yml up -d
 
 Note that we are destroying the first set of containers and then starting the second compose file which has the constraint to force Swarm to schedule the containers onto the second node.
@@ -152,11 +135,8 @@ To clean up the containers and Docker's references to the volumes, run:
 
 .. prompt:: bash $
 
-   docker-compose -f flocker-swarm-tutorial-node1.yml stop
-   docker-compose -f flocker-swarm-tutorial-node1.yml rm -f
-   docker-compose -f flocker-swarm-tutorial-node2.yml stop
-   docker-compose -f flocker-swarm-tutorial-node2.yml rm -f
-   docker volume rm postgres
+   docker-compose -f flocker-swarm-tutorial-node2.yml down
+   docker volume rm swarmcomposetutorial_postgres
 
 To actually delete the volumes, we need to use ``flockerctl``.
 For more information, see :ref:`about-docker-integration` and :ref:`flockerctl`.

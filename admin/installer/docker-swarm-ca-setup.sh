@@ -5,7 +5,7 @@ set -ex
 : ${s3_bucket:?}
 
 # Get expect to autofill openssl inputs
-sudo apt-get install -y expect
+retry_command apt-get install -y expect
 
 PASSPHRASE=$(dd bs=18 count=1 if=/dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 

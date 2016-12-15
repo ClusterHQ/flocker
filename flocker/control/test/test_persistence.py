@@ -24,13 +24,17 @@ from twisted.python.filepath import FilePath
 
 from pyrsistent import PClass, pset
 
+from testtools.matchers import Is, Equals, Not
+
+from ..testtools import deployment_strategy
+
 from ...testtools import AsyncTestCase, TestCase
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
     _LOG_SAVE, _LOG_STARTUP, migrate_configuration,
     _CONFIG_VERSION, ConfigurationMigration, ConfigurationMigrationError,
     _LOG_UPGRADE, MissingMigrationError, update_leases, _LOG_EXPIRE,
-    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json,
+    _LOG_UNCHANGED_DEPLOYMENT_NOT_SAVED, to_unserialized_json, generation_hash
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -38,38 +42,47 @@ from .._model import (
     Port, Link, Leases, Lease, BlockDeviceOwnership, PersistentState,
     )
 
-# The UUID values for the Dataset and Node in TEST_DEPLOYMENT match
-# those in the versioned JSON configuration files used by tests in this
-# module. If these values are changed, you will also need to regenerate
-# the test JSON files using the scripts provided in the
-# flocker/control/test/configurations/ directory, using the correct
-# commit checkout to generate JSON appropriate to each config version.
+# The UUID values for the Dataset and Node in the following TEST_DEPLOYMENTs
+# match those in the versioned JSON configuration files used by tests in this
+# module.  If these values are changed, you will also need to regenerate the
+# test JSON files using the scripts provided in the
+# flocker/control/test/configurations/ directory, using the correct commit
+# checkout to generate JSON appropriate to each config version.
 DATASET = Dataset(dataset_id=u'4e7e3241-0ec3-4df6-9e7c-3f7e75e08855',
                   metadata={u"name": u"myapp"})
 NODE_UUID = UUID(u'ab294ce4-a6c3-40cb-a0a2-484a1f09521c')
 MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
-TEST_DEPLOYMENT = Deployment(
+TEST_DEPLOYMENT_1 = Deployment(
     leases=Leases(),
     nodes=[Node(uuid=NODE_UUID,
-                applications=[
+                applications={
+                    u'myapp':
                     Application(
                         name=u'myapp',
                         image=DockerImage.from_string(u'postgresql:7.6'),
                         volume=AttachedVolume(
                             manifestation=MANIFESTATION,
                             mountpoint=FilePath(b"/xxx/yyy"))
-                    )],
+                    )
+                },
                 manifestations={DATASET.dataset_id: MANIFESTATION})],
-    persistent_state=PersistentState(
+)
+TEST_DEPLOYMENT_2 = TEST_DEPLOYMENT_1.set(
+    'persistent_state', PersistentState(
         blockdevice_ownership=BlockDeviceOwnership({
             UUID(u'b229d949-0856-4011-96e5-3dd0a5586180'): u'block-device-id',
         })
     )
 )
+TEST_DEPLOYMENTS = [
+    TEST_DEPLOYMENT_1,
+    TEST_DEPLOYMENT_2
+]
+LATEST_TEST_DEPLOYMENT = TEST_DEPLOYMENTS[-1]
 
 
 V1_TEST_DEPLOYMENT_JSON = FilePath(__file__).sibling(
-    'configurations').child(b"configuration_v1.json").getContent()
+    'configurations').child(b"configuration_1_v1.json").getContent()
 
 
 class LeasesTests(AsyncTestCase):
@@ -99,14 +112,14 @@ class LeasesTests(AsyncTestCase):
                 datetime.fromtimestamp(1000, UTC), dataset_id, node_id)
 
         d = self.persistence_service.save(
-            TEST_DEPLOYMENT.set(leases=original_leases))
+            LATEST_TEST_DEPLOYMENT.set(leases=original_leases))
         d.addCallback(
             lambda _: update_leases(update, self.persistence_service))
 
         def updated(_):
             self.assertEqual(
                 self.persistence_service.get(),
-                TEST_DEPLOYMENT.set(leases=update(original_leases)))
+                LATEST_TEST_DEPLOYMENT.set(leases=update(original_leases)))
         d.addCallback(updated)
         return d
 
@@ -296,27 +309,27 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         path.makedirs()
         config_path = path.child(b"current_configuration.json")
         persisted_configuration = Configuration(
-            version=_CONFIG_VERSION, deployment=TEST_DEPLOYMENT)
+            version=_CONFIG_VERSION, deployment=LATEST_TEST_DEPLOYMENT)
         config_path.setContent(wire_encode(persisted_configuration))
         self.service(path)
         loaded_configuration = wire_decode(config_path.getContent())
         self.assertEqual(loaded_configuration, persisted_configuration)
 
     @validate_logging(assertHasAction, _LOG_SAVE, succeeded=True,
-                      startFields=dict(configuration=TEST_DEPLOYMENT))
+                      startFields=dict(configuration=LATEST_TEST_DEPLOYMENT))
     def test_save_then_get(self, logger):
         """
         A configuration that was saved can subsequently retrieved.
         """
         service = self.service(FilePath(self.mktemp()), logger)
         logger.reset()
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
         d.addCallback(lambda _: service.get())
-        d.addCallback(self.assertEqual, TEST_DEPLOYMENT)
+        d.addCallback(self.assertEqual, LATEST_TEST_DEPLOYMENT)
         return d
 
     @validate_logging(assertHasMessage, _LOG_STARTUP,
-                      fields=dict(configuration=TEST_DEPLOYMENT))
+                      fields=dict(configuration=LATEST_TEST_DEPLOYMENT))
     def test_persist_across_restarts(self, logger):
         """
         A configuration that was saved can be loaded from a new service.
@@ -324,12 +337,12 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         path = FilePath(self.mktemp())
         service = ConfigurationPersistenceService(reactor, path)
         service.startService()
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
         d.addCallback(lambda _: service.stopService())
 
         def retrieve_in_new_service(_):
             new_service = self.service(path, logger)
-            self.assertEqual(new_service.get(), TEST_DEPLOYMENT)
+            self.assertEqual(new_service.get(), LATEST_TEST_DEPLOYMENT)
         d.addCallback(retrieve_in_new_service)
         return d
 
@@ -342,12 +355,13 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         callbacks = []
         callbacks2 = []
         service.register(lambda: callbacks.append(1))
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):
             service.register(lambda: callbacks2.append(1))
-            changed = TEST_DEPLOYMENT.transform(
-                ("nodes",), lambda nodes: nodes.add(Node(uuid=uuid4())),
+            uuid = uuid4()
+            changed = LATEST_TEST_DEPLOYMENT.transform(
+                ("nodes", uuid), Node(uuid=uuid),
             )
             return service.save(changed)
         d.addCallback(saved)
@@ -368,7 +382,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         callbacks = []
         service.register(lambda: 1/0)
         service.register(lambda: callbacks.append(1))
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):
             self.assertEqual(callbacks, [1])
@@ -388,11 +402,11 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         def callback():
             state.append(None)
 
-        saving = service.save(TEST_DEPLOYMENT)
+        saving = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved_old(ignored):
             service.register(callback)
-            return service.save(TEST_DEPLOYMENT)
+            return service.save(LATEST_TEST_DEPLOYMENT)
 
         saving.addCallback(saved_old)
 
@@ -412,10 +426,10 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         """
         service = self.service(FilePath(self.mktemp()), None)
 
-        old_saving = service.save(TEST_DEPLOYMENT)
+        old_saving = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved_old(ignored):
-            new_saving = service.save(TEST_DEPLOYMENT)
+            new_saving = service.save(LATEST_TEST_DEPLOYMENT)
             new_saving.addCallback(self.assertEqual, None)
             return new_saving
 
@@ -458,7 +472,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         service.startService()
         self.addCleanup(service.stopService)
         original = self.get_hash(service)
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):
             updated = self.get_hash(service)
@@ -474,7 +488,7 @@ class ConfigurationPersistenceServiceTests(AsyncTestCase):
         service = ConfigurationPersistenceService(reactor, path)
         service.startService()
         self.addCleanup(service.stopService)
-        d = service.save(TEST_DEPLOYMENT)
+        d = service.save(LATEST_TEST_DEPLOYMENT)
 
         def saved(_):
             original = self.get_hash(service)
@@ -555,14 +569,20 @@ class MigrateConfigurationTests(TestCase):
 DATASETS = st.builds(
     Dataset,
     dataset_id=st.uuids(),
-    maximum_size=st.integers(),
+    maximum_size=st.integers(min_value=1),
 )
 
-# `datetime`s accurate to seconds
-DATETIMES_TO_SECONDS = datetimes().map(lambda d: d.replace(microsecond=0))
+# UTC `datetime`s accurate to seconds
+DATETIMES_TO_SECONDS = datetimes(
+    timezones=['UTC']
+).map(
+    lambda d: d.replace(microsecond=0)
+)
 
 LEASES = st.builds(
-    Lease, dataset_id=st.uuids(), node_id=st.uuids(),
+    Lease,
+    dataset_id=st.uuids(),
+    node_id=st.uuids(),
     expiration=st.one_of(
         st.none(),
         DATETIMES_TO_SECONDS
@@ -573,10 +593,14 @@ LEASES = st.builds(
 # due to having two differing manifestations of the same dataset id.
 MANIFESTATIONS = st.builds(
     Manifestation, primary=st.just(True), dataset=DATASETS)
-IMAGES = st.builds(DockerImage, tag=st.text(), repository=st.text())
+IMAGES = st.builds(
+    DockerImage,
+    tag=st.text(alphabet=string.letters, min_size=1),
+    repository=st.text(alphabet=string.letters, min_size=1),
+)
 NONE_OR_INT = st.one_of(
     st.none(),
-    st.integers()
+    st.integers(min_value=0)
 )
 ST_PORTS = st.integers(min_value=1, max_value=65535)
 PORTS = st.builds(
@@ -597,16 +621,17 @@ APPLICATIONS = st.builds(
     Application, name=st.text(), image=IMAGES,
     # A MemoryError will likely occur without the max_size limits on
     # Ports and Links. The max_size value that will trigger memory errors
-    # will vary system to system. 10 is a reasonable test range for realistic
+    # will vary system to system. 5 is a reasonable test range for realistic
     # container usage that should also not run out of memory on most modern
     # systems.
-    ports=st.sets(PORTS, max_size=10),
-    links=st.sets(LINKS, max_size=10),
+    ports=st.sets(PORTS, max_size=5),
+    links=st.sets(LINKS, max_size=5),
     volume=st.none() | VOLUMES,
     environment=st.dictionaries(keys=st.text(), values=st.text()),
     memory_limit=NONE_OR_INT,
     cpu_shares=NONE_OR_INT,
-    running=st.booleans()
+    running=st.booleans(),
+    swappiness=st.integers(min_value=0, max_value=100)
 )
 
 
@@ -629,7 +654,7 @@ def _build_node(applications):
         .map(lambda ms: dict((m.dataset.dataset_id, m) for m in ms)))
     return st.builds(
         Node, uuid=st.uuids(),
-        applications=st.just(applications),
+        applications=st.just({a.name: a for a in applications}),
         manifestations=manifestations)
 
 
@@ -637,7 +662,7 @@ NODES = st.lists(
     APPLICATIONS,
     # If we add this hint on the number of applications, Hypothesis is able to
     # run many more tests.
-    average_size=3,
+    average_size=2,
     unique_by=lambda app:
     app if not app.volume else app.volume.manifestation.dataset_id).map(
         pset).flatmap(_build_node)
@@ -655,10 +680,10 @@ PERSISTENT_STATES = st.builds(
 
 DEPLOYMENTS = st.builds(
     # If we leave the number of nodes unbounded, Hypothesis will take too long
-    # to build examples, causing intermittent timeouts. Making it roughly 3
+    # to build examples, causing intermittent timeouts. Making it roughly 2
     # should give us adequate test coverage.
-    Deployment, nodes=st.sets(NODES, average_size=3),
-    leases=st.sets(LEASES, average_size=3).map(
+    Deployment, nodes=st.sets(NODES, average_size=2),
+    leases=st.sets(LEASES, average_size=2).map(
         lambda ls: dict((l.dataset_id, l) for l in ls)),
     persistent_state=PERSISTENT_STATES,
 )
@@ -675,7 +700,7 @@ class WireEncodeDecodeTests(TestCase):
         """
         ``wire_encode`` converts the given object to ``bytes``.
         """
-        self.assertIsInstance(wire_encode(TEST_DEPLOYMENT), bytes)
+        self.assertIsInstance(wire_encode(LATEST_TEST_DEPLOYMENT), bytes)
 
     @given(DEPLOYMENTS)
     def test_roundtrip(self, deployment):
@@ -753,7 +778,7 @@ class ConfigurationMigrationTests(TestCase):
     def test_upgrade_configuration_versions(self, versions):
         """
         A range of versions can be upgraded and the configuration
-        blob after upgrade will matche that which is expected for the
+        blob after upgrade will match that which is expected for the
         particular version.
 
         See flocker/control/test/configurations for individual
@@ -761,11 +786,191 @@ class ConfigurationMigrationTests(TestCase):
         """
         source_version, target_version = versions
         configs_dir = FilePath(__file__).sibling('configurations')
-        source_json_file = b"configuration_v%d.json" % source_version
-        target_json_file = b"configuration_v%d.json" % versions[1]
+
+        # Choose the latest configuration number available for the given
+        # version of the config. The configuration has increased in complexity
+        # over time, so we have added additional configurations to verify that
+        # the new fields can be correctly upgraded.
+        source_json_glob = b"configuration_*_v%d.json" % source_version
+        source_jsons = sorted(configs_dir.globChildren(source_json_glob),
+                              key=lambda x: x.basename())
+        config_num = int(source_jsons[-1].basename().split('_')[1])
+
+        source_json_file = b"configuration_%d_v%d.json" % (config_num,
+                                                           versions[0])
+        target_json_file = b"configuration_%d_v%d.json" % (config_num,
+                                                           versions[1])
         source_json = configs_dir.child(source_json_file).getContent()
         target_json = configs_dir.child(target_json_file).getContent()
         upgraded_json = migrate_configuration(
             source_version, target_version,
             source_json, ConfigurationMigration)
         self.assertEqual(json.loads(upgraded_json), json.loads(target_json))
+
+
+class LatestGoldenFilesValid(TestCase):
+    """
+    Tests for the latest golden files to ensure they have not regressed.
+    """
+
+    def test_can_create_latest_golden(self):
+        """
+        The latest golden files should be identical to ones generated from
+        HEAD.
+        """
+        configs_dir = FilePath(__file__).sibling('configurations')
+        for i, deployment in enumerate(TEST_DEPLOYMENTS, start=1):
+            encoding = wire_encode(
+                Configuration(version=_CONFIG_VERSION, deployment=deployment)
+            )
+            path = configs_dir.child(
+                b"configuration_%d_v%d.json" % (i, _CONFIG_VERSION)
+            )
+            self.assertEqual(
+                json.loads(encoding),
+                json.loads(path.getContent().rstrip()),
+                "Golden test file %s can not be generated from HEAD. Please "
+                "review the python files in that directory to re-generate "
+                "that file if you have intentionally changed the backing test "
+                "data. You might need to update the model version and write "
+                "an upgrade test if you are intentionally changing the "
+                "model." % (path.path,)
+            )
+
+
+class GenerationHashTests(TestCase):
+    """
+    Tests for generation_hash.
+    """
+
+    @given(st.data())
+    def test_no_hash_collisions(self, data):
+        """
+        Hashes of different deployments do not have hash collisions, hashes of
+        the same object have the same hash.
+        """
+        # With 128 bits of hash, a collision here indicates a fault in the
+        # algorithm.
+
+        # Generate the first deployment.
+        deployment_a = data.draw(deployment_strategy())
+
+        # Decide if we want to generate a second deployment, or just compare
+        # the first deployment to a re-serialized version of itself:
+        simple_comparison = data.draw(st.booleans())
+        if simple_comparison:
+            deployment_b = wire_decode(wire_encode(deployment_a))
+        else:
+            deployment_b = data.draw(deployment_strategy())
+
+        should_be_equal = (deployment_a == deployment_b)
+        if simple_comparison:
+            self.assertThat(
+                should_be_equal,
+                Is(True)
+            )
+
+        hash_a = generation_hash(deployment_a)
+        hash_b = generation_hash(deployment_b)
+
+        if should_be_equal:
+            self.assertThat(
+                hash_a,
+                Equals(hash_b)
+            )
+        else:
+            self.assertThat(
+                hash_a,
+                Not(Equals(hash_b))
+            )
+
+    def test_maps_and_sets_differ(self):
+        """
+        Mappings hash to different values than frozensets of their iteritems().
+        """
+        self.assertThat(
+            generation_hash(frozenset([('a', 1), ('b', 2)])),
+            Not(Equals(generation_hash(dict(a=1, b=2))))
+        )
+
+    def test_strings_and_jsonable_types_differ(self):
+        """
+        Strings and integers hash to different values.
+        """
+        self.assertThat(
+            generation_hash(5),
+            Not(Equals(generation_hash('5')))
+        )
+
+    def test_sets_and_objects_differ(self):
+        """
+        Sets can be hashed and 1 element sets have a different hash than the
+        hash of the single element.
+        """
+        self.assertThat(
+            generation_hash(5),
+            Not(Equals(generation_hash(frozenset([5]))))
+        )
+
+    def test_lists_and_objects_differ(self):
+        """
+        Lists can be hashed, and have a different hash value than scalars with
+        the same value or sets with the same values.
+        """
+        self.assertThat(
+            generation_hash(913),
+            Not(Equals(generation_hash([913])))
+        )
+        self.assertThat(
+            generation_hash(frozenset([913])),
+            Not(Equals(generation_hash([913])))
+        )
+
+    def test_empty_sets_can_be_hashed(self):
+        """
+        Empty sets can be hashed and result in different hashes than empty
+        strings or the string 'NULLSET'.
+        """
+        self.assertThat(
+            generation_hash(frozenset()),
+            Not(Equals(generation_hash('')))
+        )
+        self.assertThat(
+            generation_hash(frozenset()),
+            Not(Equals(generation_hash(b'NULLSET')))
+        )
+
+    def test_unicode_hash(self):
+        """
+        Unicode strings can be hashed, and are hashed to the same value as
+        their bytes equivalent.
+        """
+        self.assertThat(
+            generation_hash(unicode(u'abcde')),
+            Equals(generation_hash(bytes(b'abcde')))
+        )
+
+    def test_consistent_hash(self):
+        """
+        A given deployment hashes to a specific value.
+        """
+        # Unfortunately these are manually created golden values generated by
+        # running the test with wrong values and copying the output into this
+        # file. This test mostly adds value in verifying that the hashes
+        # computed in all of our CI environments are the same.
+        TEST_DEPLOYMENT_1_HASH = ''.join(chr(x) for x in [
+            0x87, 0x13, 0xcb, 0x47, 0x60, 0xd7, 0xab, 0x0f,
+            0x30, 0xd5, 0xd2, 0x78, 0xe8, 0x12, 0x5d, 0x11
+        ])
+        TEST_DEPLOYMENT_2_HASH = ''.join(chr(x) for x in [
+            0x5f, 0xc0, 0x2b, 0x4c, 0x57, 0x75, 0x35, 0xff,
+            0x6d, 0x1f, 0xd2, 0xc0, 0x14, 0xcf, 0x45, 0x32
+        ])
+        self.assertThat(
+            generation_hash(TEST_DEPLOYMENT_1),
+            Equals(TEST_DEPLOYMENT_1_HASH)
+        )
+        self.assertThat(
+            generation_hash(TEST_DEPLOYMENT_2),
+            Equals(TEST_DEPLOYMENT_2_HASH)
+        )

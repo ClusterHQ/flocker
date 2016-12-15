@@ -12,8 +12,7 @@ To build omnibus packages, create a VirtualEnv and install Flocker then its rele
 
    cd /path/to/flocker
    mkvirtualenv flocker-packaging
-   pip install --process-dependency-links .
-   pip install --process-dependency-links .[dev]
+   pip install --requirement requirements/admin.txt
 
 Then run the following command from a clean checkout of the Flocker repository:
 
@@ -31,7 +30,6 @@ This will generate three packages files in the current working directory. E.g.
 * ``clusterhq-flocker-cli-0.3.0-0.dev.1.307.gb6d6e9f.dirty.noarch.rpm``
 
   This meta-package will install all the dependencies needed to run the Flocker client scripts.
-  It will also install a symbolic link for ``flocker-deploy`` in ``/usr/bin``.
 
 * ``clusterhq-flocker-node-0.3.0-0.dev.1.307.gb6d6e9f.dirty.noarch.rpm``
 
@@ -74,17 +72,17 @@ Each contains sub-folders for the distribution version and architecture, which f
 To make the entire bucket public, this bucket has the following policy::
 
    {
-   	"Version": "2008-10-17",
-   	"Id": "PolicyForPublicAccess",
-   	"Statement": [
-   		{
-   			"Sid": "1",
-   			"Effect": "Allow",
-   			"Principal": "*",
-   			"Action": "s3:GetObject",
-   			"Resource": "arn:aws:s3:::clusterhq-archive/*"
-   		}
-   	]
+        "Version": "2008-10-17",
+        "Id": "PolicyForPublicAccess",
+        "Statement": [
+                {
+                        "Sid": "1",
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": "s3:GetObject",
+                        "Resource": "arn:aws:s3:::clusterhq-archive/*"
+                }
+        ]
    }
 
 A policy can be set by going to a bucket's "Properties", "Permissions", then "Add bucket policy".
@@ -117,3 +115,90 @@ Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on Google Cloud S
 The legacy ClusterHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.
 
 Old versions of Flocker source and binary distributions are hosted on Google Cloud Storage.
+
+
+Building Docker Images
+======================
+
+The Docker images: ``flocker-dataset`` and ``flocker-control`` are built automatically by our CI system.
+They are tagged with the Git revision hash and uploaded to https://hub.docker.com/r/clusterhqci.
+
+flocker-dataset-agent
+---------------------
+
+To build the Docker image for ``flocker-dataset-agent``, run:
+
+.. prompt:: bash $
+
+   export FLOCKER_VERSION=1.15.0
+   docker build \
+       --rm \
+       --tag "clusterhqci/flocker-dataset-agent:${FLOCKER_VERSION}" \
+       --build-arg "FLOCKER_VERSION=${FLOCKER_VERSION}-1" \
+       dockerfiles/dataset
+
+You can also build the latest version of Flocker from a custom repository:
+
+.. prompt:: bash $
+
+   docker build \
+       --rm \
+       --tag "clusterhqci/flocker-dataset-agent:master" \
+       --build-arg "FLOCKER_REPOSITORY=http://build.clusterhq.com/results/omnibus/master/ubuntu-16.04/" \
+       dockerfiles/dataset
+
+To check the image, run the container with the argument ```--version```:
+
+.. prompt:: bash $
+
+   docker run --rm clusterhq/flocker-dataset-agent:master --version
+
+To run the container:
+
+.. prompt:: bash $
+
+    docker run \
+        --net host \
+        --privileged \
+        --volume /flocker:/flocker:shared \
+        --volume /etc/flocker:/etc/flocker:ro \
+        --volume /dev:/dev \
+        --detach \
+        clusterhqci/flocker-dataset-agent:master
+
+
+flocker-control
+---------------
+
+The ``flocker-control`` Docker image is built using the same ``docker build ...`` command line as for ``flocker-dataset-agent`` but substituting the ``control``.
+
+To run the ``flocker-control`` container:
+
+.. prompt:: bash $
+
+    docker run \
+        --name flocker-control \
+        --net host \
+        -p 4523:4523 \
+        -p 4524:4524 \
+        --volume /var/lib/flocker:/var/lib/flocker  \
+        --volume /etc/flocker:/etc/flocker:ro \
+        --detach \
+        clusterhqci/flocker-control:master
+
+flocker-docker-plugin
+---------------------
+
+The ``flocker-docker-plugin`` Docker image is built using the same ``docker build ...`` command line as for ``flocker-dataset-agent`` but substituting the ``docker-plugin``.
+
+To run the ``flocker-docker-plugin`` container:
+
+.. prompt:: bash $
+
+    docker run \
+        --name flocker-docker-plugin \
+        --net host \
+        --volume /etc/flocker:/etc/flocker:ro \
+        --detach \
+        clusterhqci/flocker-docker-plugin:master \
+        --rest-api-port=4523

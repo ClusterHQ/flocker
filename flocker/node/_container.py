@@ -14,17 +14,15 @@ from pyrsistent import PClass, field
 
 from eliot import Message, Logger, start_action
 
-from twisted.internet.defer import fail, succeed
+from twisted.internet.defer import succeed
 
 from . import IStateChange, in_parallel, sequentially
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 
 from ..control._model import (
     Application, AttachedVolume, NodeState, DockerImage, Port, Link,
-    RestartNever, pset_field, ip_to_uuid,
+    RestartNever, ip_to_uuid,
     )
-from ..route import make_host_network, Proxy, OpenPort
-from ..common import gather_deferreds
 
 from ._deploy import IDeployer, NodeLocalState
 
@@ -163,72 +161,6 @@ class StopApplication(PClass):
         return deployer.docker_client.remove(unit_name)
 
 
-@implementer(IStateChange)
-class SetProxies(PClass):
-    """
-    Set the ports which will be forwarded to other nodes.
-
-    :ivar ports: A collection of ``Proxy`` objects.
-    """
-    ports = pset_field(Proxy)
-
-    @property
-    def eliot_action(self):
-        return start_action(
-            _logger, _eliot_system("setproxies"),
-            addresses=list(port.serialize() for port in self.ports),
-        )
-
-    def run(self, deployer, state_persister):
-        results = []
-        # XXX: The proxy manipulation operations are blocking. Convert to a
-        # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
-        for proxy in deployer.network.enumerate_proxies():
-            try:
-                deployer.network.delete_proxy(proxy)
-            except:
-                results.append(fail())
-        for proxy in self.ports:
-            try:
-                deployer.network.create_proxy_to(proxy.ip, proxy.port)
-            except:
-                results.append(fail())
-        return gather_deferreds(results)
-
-
-@implementer(IStateChange)
-class OpenPorts(PClass):
-    """
-    Set the ports which will have the firewall opened.
-
-    :ivar ports: A list of :class:`OpenPort`s.
-    """
-    ports = pset_field(OpenPort)
-
-    @property
-    def eliot_action(self):
-        return start_action(
-            _logger, _eliot_system("openports"),
-            ports=list(port.port for port in self.ports),
-        )
-
-    def run(self, deployer, state_persister):
-        results = []
-        # XXX: The proxy manipulation operations are blocking. Convert to a
-        # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
-        for open_port in deployer.network.enumerate_open_ports():
-            try:
-                deployer.network.delete_open_port(open_port)
-            except:
-                results.append(fail())
-        for open_port in self.ports:
-            try:
-                deployer.network.open_port(open_port.port)
-            except:
-                results.append(fail())
-        return gather_deferreds(results)
-
-
 @implementer(IDeployer)
 class ApplicationNodeDeployer(object):
     """
@@ -238,11 +170,8 @@ class ApplicationNodeDeployer(object):
             on.
     :ivar IDockerClient docker_client: The Docker client API to use in
         deployment operations. Default ``DockerClient``.
-    :ivar INetwork network: The network routing API to use in
-        deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, hostname, docker_client=None, network=None,
-                 node_uuid=None):
+    def __init__(self, hostname, docker_client=None, node_uuid=None):
         if node_uuid is None:
             # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
@@ -254,9 +183,6 @@ class ApplicationNodeDeployer(object):
         if docker_client is None:
             docker_client = DockerClient()
         self.docker_client = docker_client
-        if network is None:
-            network = make_host_network()
-        self.network = network
 
     def _attached_volume_for_container(
             self, container, path_to_manifestations
@@ -378,7 +304,7 @@ class ApplicationNodeDeployer(object):
             ports = self._ports_for_container(container)
             links, environment = self._environment_for_container(container)
             applications.append(Application(
-                name=container.name,
+                name=unicode(container.name),
                 image=image,
                 ports=frozenset(ports),
                 volume=volume,
@@ -632,41 +558,19 @@ class ApplicationNodeDeployer(object):
 
         phases = []
 
-        desired_proxies = set()
-        desired_open_ports = set()
-        desired_node_applications = []
-        node_states = {node.uuid: node for node in current_cluster_state.nodes}
-
-        for node in desired_configuration.nodes:
+        for node in desired_configuration.nodes.values():
             if node.uuid == self.node_uuid:
                 desired_node_applications = node.applications
-                for application in node.applications:
-                    for port in application.ports:
-                        desired_open_ports.add(
-                            OpenPort(port=port.external_port))
-            else:
-                for application in node.applications:
-                    for port in application.ports:
-                        # XXX: also need to do DNS resolution. See
-                        # https://clusterhq.atlassian.net/browse/FLOC-322
-                        if node.uuid in node_states:
-                            desired_proxies.add(Proxy(
-                                ip=node_states[node.uuid].hostname,
-                                port=port.external_port))
+                break
+        else:
+            desired_node_applications = {}
 
-        if desired_proxies != set(self.network.enumerate_proxies()):
-            phases.append(SetProxies(ports=desired_proxies))
-
-        if desired_open_ports != set(self.network.enumerate_open_ports()):
-            phases.append(OpenPorts(ports=desired_open_ports))
-
-        all_applications = current_node_state.applications
+        all_applications = current_node_state.applications.values()
 
         # Compare the applications being changed by name only.  Other
         # configuration changes aren't important at this point.
         local_application_names = {app.name for app in all_applications}
-        desired_local_state = {app.name for app in
-                               desired_node_applications}
+        desired_local_state = frozenset(desired_node_applications.keys())
         # Don't start applications that exist on this node but aren't running;
         # Docker is in charge of restarts (and restarts aren't supported yet
         # anyway; see FLOC-2449):
@@ -676,7 +580,7 @@ class ApplicationNodeDeployer(object):
 
         start_containers = [
             StartApplication(application=app, node_state=current_node_state)
-            for app in desired_node_applications
+            for app in desired_node_applications.values()
             if ((app.name in start_names) and
                 # If manifestation isn't available yet, don't start:
                 # XXX in FLOC-1240 non-primaries should be checked.
@@ -696,10 +600,7 @@ class ApplicationNodeDeployer(object):
         current_applications_dict = dict(zip(
             [a.name for a in all_applications], all_applications
         ))
-        desired_applications_dict = dict(zip(
-            [a.name for a in desired_node_applications],
-            desired_node_applications
-        ))
+        desired_applications_dict = desired_node_applications
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]

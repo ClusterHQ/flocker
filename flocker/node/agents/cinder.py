@@ -5,12 +5,13 @@
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 from itertools import repeat
+import json
 import time
 from uuid import UUID
 
 from bitmath import Byte, GiB
 
-from eliot import Message
+from eliot import Message, writeTraceback
 
 from pyrsistent import PClass, field
 
@@ -21,12 +22,13 @@ from keystoneclient.openstack.common.apiclient.exceptions import (
 from keystoneclient.auth import get_plugin_class
 from keystoneclient.session import Session
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
+from cinderclient.api_versions import get_api_version
 from cinderclient.client import Client as CinderClient
 from cinderclient.exceptions import NotFound as CinderClientNotFound
 from novaclient.client import Client as NovaClient
 from novaclient.exceptions import NotFound as NovaNotFound
 from novaclient.exceptions import ClientException as NovaClientException
-
+import requests
 from twisted.python.filepath import FilePath
 from twisted.python.components import proxyForInterface
 
@@ -39,6 +41,9 @@ from ...common import (
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, UnknownInstanceID, get_blockdevice_volume, ICloudAPI,
+)
+from .blockdevice_manager import (
+    LabelledFilesystem, MountError, temporary_mount
 )
 from ._logging import (
     NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR, COMPUTE_INSTANCE_ID_NOT_FOUND,
@@ -58,6 +63,92 @@ CINDER_TIMEOUT = 600
 
 # The longest time we're willing to wait for a Cinder volume to be destroyed
 CINDER_VOLUME_DESTRUCTION_TIMEOUT = 300
+
+CONFIG_DRIVE_LABEL = u"config-2"
+METADATA_RELATIVE_PATH = ['openstack', 'latest', 'meta_data.json']
+METADATA_SERVICE_ENDPOINT = (b"169.254.169.254", 80)
+
+
+def metadata_from_config_drive(config_drive_label=CONFIG_DRIVE_LABEL):
+    """
+    Attempt to retrieve metadata from config drive.
+    """
+    try:
+        mounted_fs = temporary_mount(
+            LabelledFilesystem(label=config_drive_label),
+            options=["ro"]
+        )
+    except MountError as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:configdrive_not_available"),
+            error_message=unicode(e),
+        ).write()
+        return None
+
+    with mounted_fs as mountpoint:
+        metadata_file = mountpoint.descendant(METADATA_RELATIVE_PATH)
+        try:
+            content = metadata_file.getContent()
+        except IOError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_found"),
+                error_message=unicode(e),
+            ).write()
+            return
+        try:
+            return json.loads(content)
+        except ValueError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_json"),
+                error_message=unicode(e),
+            ).write()
+            return
+
+
+def metadata_from_service(metadata_service_endpoint=METADATA_SERVICE_ENDPOINT,
+                          connect_timeout=5.0):
+    """
+    Attempt to retrieve metadata from the Openstack metadata service.
+    """
+    endpoint_url = "http://{}:{}/{}".format(
+        metadata_service_endpoint[0],
+        metadata_service_endpoint[1],
+        "/".join(METADATA_RELATIVE_PATH),
+    )
+    try:
+        response = requests.get(endpoint_url, timeout=connect_timeout)
+    except requests.exceptions.ConnectTimeout as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:metadataservice_connect_timeout"),
+            error_message=unicode(e),
+        ).write()
+        return None
+    except requests.exceptions.ConnectionError as e:
+        Message.new(
+            message_type=(
+                u"flocker:node:agents:blockdevice:openstack:"
+                u"compute_instance_id:metadataservice_connection_error"),
+            error_message=unicode(e),
+        ).write()
+        return None
+    if response.ok:
+        try:
+            return response.json()
+        except ValueError as e:
+            Message.new(
+                message_type=(
+                    u"flocker:node:agents:blockdevice:openstack:"
+                    u"compute_instance_id:metadata_file_not_json"),
+                error_message=unicode(e),
+            ).write()
 
 
 def _openstack_logged_method(method_name, original_name):
@@ -379,6 +470,31 @@ def _extract_nova_server_addresses(addresses):
     return all_addresses
 
 
+def _get_compute_id(local_ips, id_to_node_ips):
+    """
+    Compute the instance ID of the local machine.
+
+    Expectation is that our local IPs intersect with one (only) of the
+    remote nodes' sets of IPs.
+
+    :param set local_ips: The local machine's IPs.
+    :param id_to_node_ips: Mapping from instance IDs to sets of IPs, as
+        reported by OpenStack.
+
+    :return: Instance ID of local machine.
+    """
+    matching_instances = []
+    for server_id, api_addresses in id_to_node_ips.items():
+        if api_addresses.intersection(local_ips):
+            matching_instances.append(server_id)
+
+    # If we've got this correct there should only be one matching instance.
+    # But we don't currently test this directly. See FLOC-2281.
+    if len(matching_instances) == 1 and matching_instances[0]:
+        return matching_instances[0]
+    raise KeyError("Couldn't find matching node.")
+
+
 def _nova_detach(nova_volume_manager, cinder_volume_manager,
                  server_id, cinder_volume):
     """
@@ -442,6 +558,8 @@ class CinderBlockDeviceAPI(object):
         if time_module is None:
             time_module = time
         self._time = time_module
+        self._config_drive_label = CONFIG_DRIVE_LABEL
+        self._metadata_service_endpoint = METADATA_SERVICE_ENDPOINT
 
     def allocation_unit(self):
         """
@@ -456,37 +574,57 @@ class CinderBlockDeviceAPI(object):
         """
         return int(GiB(1).to_Byte().value)
 
-    def compute_instance_id(self):
+    def _compute_instance_id_by_ipaddress_match(self):
         """
-        Find the ``ACTIVE`` Nova API server with a subset of the IPv4 and IPv6
-        addresses on this node.
+        Attempt to retrieve node UUID by finding the ``ACTIVE`` Nova API server
+        with an intersection of the IPv4 and IPv6 addresses on this node.
         """
         local_ips = get_all_ips()
         api_ip_map = {}
-        matching_instances = []
+        id_to_node_ips = {}
         for server in self.nova_server_manager.list():
             # Servers which are not active will not have any IP addresses
             if server.status != u'ACTIVE':
                 continue
             api_addresses = _extract_nova_server_addresses(server.addresses)
-            # Only do subset comparison if there were *some* IP addresses;
-            # non-ACTIVE servers will have an empty list of IP addresses and
-            # lead to incorrect matches.
-            if api_addresses and api_addresses.issubset(local_ips):
-                matching_instances.append(server.id)
-            else:
-                for ip in api_addresses:
-                    api_ip_map[ip] = server.id
+            id_to_node_ips[server.id] = api_addresses
+            for ip in api_addresses:
+                api_ip_map[ip] = server.id
 
-        # If we've got this correct there should only be one matching instance.
-        # But we don't currently test this directly. See FLOC-2281.
-        if len(matching_instances) == 1 and matching_instances[0]:
-            return matching_instances[0]
-        # If there was no match, or if multiple matches were found, log an
-        # error containing all the local and remote IPs.
-        COMPUTE_INSTANCE_ID_NOT_FOUND(
-            local_ips=local_ips, api_ips=api_ip_map
-        ).write()
+        try:
+            return _get_compute_id(local_ips, id_to_node_ips)
+        except KeyError:
+            # If there was no match, or if multiple matches were found, log an
+            # error containing all the local and remote IPs.
+            COMPUTE_INSTANCE_ID_NOT_FOUND(
+                local_ips=local_ips, api_ips=api_ip_map
+            ).write()
+
+    def compute_instance_id(self):
+        """
+        Attempt to retrieve node UUID from the metadata in a config drive or
+        from the metadata service.
+        Fall back to finging the ``ACTIVE`` Nova API server with an
+        intersection of the IPv4 and IPv6 addresses on this node.
+        """
+        metadata_checkers = [
+            lambda: metadata_from_config_drive(
+                config_drive_label=self._config_drive_label
+            ),
+            lambda: metadata_from_service(
+                metadata_service_endpoint=self._metadata_service_endpoint
+            ),
+        ]
+        for checker in metadata_checkers:
+            metadata = checker()
+            if metadata:
+                return metadata["uuid"]
+        try:
+            result = self._compute_instance_id_by_ipaddress_match()
+        except:
+            writeTraceback()
+        else:
+            return result
         raise UnknownInstanceID(self)
 
     def create_volume(self, dataset_id, size):
@@ -529,7 +667,7 @@ class CinderBlockDeviceAPI(object):
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
         """
         flocker_volumes = []
-        for cinder_volume in self.cinder_volume_manager.list():
+        for cinder_volume in self.cinder_volume_manager.list(detailed=True):
             if _is_cluster_volume(self.cluster_id, cinder_volume):
                 flocker_volume = _blockdevicevolume_from_cinder_volume(
                     cinder_volume
@@ -893,9 +1031,41 @@ class Cinder1to2Adapter(proxyForInterface(ICinderVolumeManager, "_client_v2")):
         )
 
 
+def lazy_loading_proxy_for_interface(interface, loader):
+    """
+    Create a proxy for an interface which builds the wrapped object lazily.
+
+    This is different than a normal ``proxyForInterface`` subclass in that the
+    wrapped object is not supplied to the class initializer but instead
+    generated lazily by the supplied ``loader`` function.
+
+    :param Interface interface: The ``Interface`` describing the methods and
+        attributes that will be available on te returned proxy.
+    :param loader: A no-argument function which will be called to create the
+        wrapped object the first time one of the proxied objects is accessed.
+    :returns: The proxy object.
+    """
+    class LazyLoadingProxy(proxyForInterface(interface, "_original")):
+        _cached_original = None
+
+        def __init__(self):
+            """
+            The initializer of a class generated by ``proxyForInterface``
+            expects the wrapped "original" object as an argument.  Overrride
+            that here.
+            """
+
+        @property
+        def _original(self):
+            if self._cached_original is None:
+                self._cached_original = loader()
+            return self._cached_original
+    return LazyLoadingProxy()
+
+
 CINDER_API_METADATA_IN_PRIORITY_ORDER = (
-    dict(version=u"2", adapter_v1=Cinder1to2Adapter),
-    dict(version=u"1", adapter_v1=lambda client: client),
+    dict(version=2, adapter_v1=Cinder1to2Adapter),
+    dict(version=1, adapter_v1=lambda client: client),
 )
 
 CINDER_V1_ADAPTERS = {
@@ -973,24 +1143,52 @@ def cinder_from_configuration(region, cluster_id, **config):
     :param cluster_id: The unique identifier for the cluster to access.
     :param config: A dictionary of configuration options for Openstack.
     """
-    cinder_client = get_cinder_client(
-        session=get_keystone_session(**config),
-        region=region,
+    def lazy_cinder_loader():
+        """
+        Build the v1 or v2 ``ICinderVolumeManager`` wrapped for compatibility
+        with the v1 API and wrapped to provide logging of API calls.
+        This will be invoked by ``LazyLoadingProxy`` the first time an
+        ``ICinderVolumeManager`` attribute is accessed.
+        The reason for the lazy loading of the volume manager is so that the
+        the cinder API version detection can delayed until the
+        ``flocker-dataset-agent`` loop has started. And the reason for that is
+        so that exceptions (e.g. keystone connection errors) that occur during
+        the cinder API version detection, do not occur when the
+        ``CinderBlockDeviceAPI`` is initialized and crash the process. This way
+        errors will be caught by the loop and the cinder API version detection
+        will be retried until it succeeds.
+
+        :returns: The ``ICinderVolumeManager`` wrapper.
+        """
+        session = get_keystone_session(**config)
+        # Force authentication here for a clearer stack trace if the keystone
+        # endpoint is not accessible.
+        session.get_token()
+        cinder_client = get_cinder_client(
+            session=session,
+            region=region,
+        )
+
+        wrapped_cinder_volume_manager = _LoggingCinderVolumeManager(
+            cinder_client.volumes
+        )
+        cinder_client_version = get_api_version(cinder_client.version)
+        # Add a Cinder v1 adapter if necessary
+        adapted_cinder_volume_manager = CINDER_V1_ADAPTERS[
+            cinder_client_version.ver_major
+        ](wrapped_cinder_volume_manager)
+
+        return adapted_cinder_volume_manager
+
+    lazy_cinder_volume_manager_proxy = lazy_loading_proxy_for_interface(
+        interface=ICinderVolumeManager,
+        loader=lazy_cinder_loader,
     )
 
     nova_client = get_nova_v2_client(
         session=get_keystone_session(**config),
         region=region,
     )
-
-    wrapped_cinder_volume_manager = _LoggingCinderVolumeManager(
-        cinder_client.volumes
-    )
-
-    # Add a Cinder v1 adapter if necessary
-    wrapped_cinder_volume_manager = CINDER_V1_ADAPTERS[
-        cinder_client.version
-    ](wrapped_cinder_volume_manager)
 
     logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
@@ -999,7 +1197,7 @@ def cinder_from_configuration(region, cluster_id, **config):
         _nova_servers=nova_client.servers
     )
     return CinderBlockDeviceAPI(
-        cinder_volume_manager=wrapped_cinder_volume_manager,
+        cinder_volume_manager=lazy_cinder_volume_manager_proxy,
         nova_volume_manager=logging_nova_volume_manager,
         nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,

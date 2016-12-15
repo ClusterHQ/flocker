@@ -18,20 +18,38 @@
     # Changed in 1.4.0
     "labs/docker-plugin.html": {replace_key: "docker-integration/"}
 "en/":
-    # Redirects for version of the documentation not published to S3.
-    "0.0.0/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.0.1/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.0.4/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.0.5/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.0.6/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.0.7/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.1.0/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.1.1/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.1.2/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.1.3/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.1.4/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.2.0/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.2.1/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.3.0/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.3.1.post1/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
-    "0.3.1/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
+    # Redirects for obsolete versions of the documentation.
+    "0.1.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.1.1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.1.2/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.1.3/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.1.4/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.2.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.2.1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.3.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.3.1.post1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.3.1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.3.2/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.4.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "0.9.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.0.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.0.1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.0.2/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.0.3/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.1.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.2.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.3.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.3.1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.4.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.5.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.6.1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.7.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.7.1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.7.2/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.8.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.9.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.9.0/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.10.1/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.10.2/": {replace_key: "latest/", http_redirect_code: '301'}
+    "1.11.0/": {replace_key_prefix: "latest/", http_redirect_code: '301'}
+    "1.12.0/": {replace_key_prefix: "latest/", http_redirect_code: '301'}

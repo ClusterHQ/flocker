@@ -30,7 +30,6 @@ from ...testtools import (
     AsyncTestCase,
 )
 from ...volume.testtools import create_volume_service
-from ...route import make_memory_network
 from .. import run_state_change
 from ...control.testtools import InMemoryStatePersister
 
@@ -43,16 +42,15 @@ class P2PNodeDeployer(object):
     https://clusterhq.atlassian.net/browse/FLOC-1732
     """
     def __init__(self, hostname, volume_service, docker_client=None,
-                 network=None, node_uuid=None):
+                 node_uuid=None):
         self.manifestations_deployer = P2PManifestationDeployer(
             hostname, volume_service, node_uuid=node_uuid)
         self.applications_deployer = ApplicationNodeDeployer(
-            hostname, docker_client, network, node_uuid=node_uuid)
+            hostname, docker_client, node_uuid=node_uuid)
         self.hostname = hostname
         self.node_uuid = node_uuid
         self.volume_service = self.manifestations_deployer.volume_service
         self.docker_client = self.applications_deployer.docker_client
-        self.network = self.applications_deployer.network
 
     def discover_state(self, cluster_state, persistent_state):
         d = self.manifestations_deployer.discover_state(
@@ -174,7 +172,7 @@ class DeployerTests(AsyncTestCase):
 
             deployer = P2PNodeDeployer(
                 u"localhost", volume_service, docker_client,
-                make_memory_network(), node_uuid=uuid4())
+                node_uuid=uuid4())
 
             dataset = Dataset(
                 dataset_id=unicode(uuid4()),
@@ -247,7 +245,7 @@ class DeployerTests(AsyncTestCase):
 
             deployer = P2PNodeDeployer(
                 u"localhost", volume_service, docker_client,
-                make_memory_network(), node_uuid=uuid4())
+                node_uuid=uuid4())
 
             link = Link(alias=u"alias",
                         local_port=80,
@@ -313,7 +311,7 @@ class DeployerTests(AsyncTestCase):
 
         deployer = ApplicationNodeDeployer(
             u"localhost", docker_client,
-            make_memory_network(), node_uuid=uuid4())
+            node_uuid=uuid4())
 
         application = Application(
             name=application_name,
@@ -351,7 +349,8 @@ class DeployerTests(AsyncTestCase):
         d.addCallback(
             lambda results: self.assertIn(
                 pset([link]),
-                [app.links for app in results.node_state.applications]))
+                [app.links for app in results.node_state.applications.values()]
+            ))
         return d
 
     @if_docker_configured
@@ -365,7 +364,8 @@ class DeployerTests(AsyncTestCase):
         d.addCallback(
             lambda results: self.assertIn(
                 command_line,
-                [app.command_line for app in results.node_state.applications]))
+                [app.command_line for app in
+                 results.node_state.applications.values()]))
         return d
 
     @if_docker_configured
@@ -383,7 +383,7 @@ class DeployerTests(AsyncTestCase):
         self.addCleanup(docker_client.remove, application_name)
 
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network(),
+            u"localhost", docker_client,
             node_uuid=uuid4())
 
         desired_state = Deployment(nodes=frozenset([
@@ -431,7 +431,7 @@ class DeployerTests(AsyncTestCase):
         self.addCleanup(docker_client.remove, application_name)
 
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network(),
+            u"localhost", docker_client,
             node_uuid=uuid4())
 
         desired_state = Deployment(nodes=frozenset([

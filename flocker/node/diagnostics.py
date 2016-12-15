@@ -308,11 +308,17 @@ DISTRIBUTIONS = (
         log_exporter=UpstartLogExporter,
     ),
     Distribution(
+        name=u'ubuntu',
+        version=u'16.04',
+        service_manager=SystemdServiceManager,
+        log_exporter=JournaldLogExporter,
+    ),
+    Distribution(
         name=u'redhat',
         version=u'7.2',
         service_manager=SystemdServiceManager,
         log_exporter=JournaldLogExporter,
-    )
+    ),
 )
 
 

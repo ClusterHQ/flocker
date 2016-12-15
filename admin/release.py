@@ -134,8 +134,8 @@ class DocumentationConfiguration(object):
 DOCUMENTATION_CONFIGURATIONS = {
     Environments.PRODUCTION:
         DocumentationConfiguration(
-            documentation_bucket="clusterhq-docs",
-            cloudfront_cname="docs.clusterhq.com",
+            documentation_bucket="clusterhq-flocker-docs",
+            cloudfront_cname="flocker-docs.clusterhq.com",
             dev_bucket="clusterhq-staging-docs"),
     Environments.STAGING:
         DocumentationConfiguration(
@@ -806,7 +806,7 @@ def initialize_release(version, path, top_level):
     check_call(
         [virtualenv_path.descendant(["bin", "python"]).path,
          virtualenv_path.descendant(["bin", "pip"]).path,
-         "install", "-e", ".[dev]"],
+         "install", "--requirement", "dev-requirements.txt"],
         stdout=open(os.devnull, 'w'),
         env=environment,
         cwd=release_path.path,

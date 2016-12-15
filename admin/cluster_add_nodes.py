@@ -52,8 +52,6 @@ class RunOptions(SetupOptions):
     def __init__(self, top_level):
         """
         :param FilePath top_level: The top-level of the Flocker repository.
-        :param reactor: The reactor.
-        :param Deferred ready: A deferred to fire...
         """
         super(RunOptions, self).__init__(top_level)
         self._remove_options(['no-keep'])
@@ -172,7 +170,7 @@ def main(reactor, args, base_path, top_level):
     if options['distribution'] in ('centos-7',):
         remote_logs_file = open("remote_logs.log", "a")
         capture_journal(reactor, control_node, remote_logs_file)
-    elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.10'):
+    elif options['distribution'] in ('ubuntu-14.04',):
         remote_logs_file = open("remote_logs.log", "a")
         capture_upstart(reactor, control_node, remote_logs_file)
 
@@ -188,9 +186,9 @@ def main(reactor, args, base_path, top_level):
     results = yield DeferredList(deferreds)
 
     failed_count = 0
-    for (success, value) in results:
+    for (success, _) in results:
         if not success:
-            failed_count = failed_count + 1
+            failed_count += 1
     if failed_count:
         print "Failed to create {} nodes, see logs.".format(failed_count)
 

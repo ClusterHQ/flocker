@@ -110,7 +110,7 @@ class Distribution(object):
 DISTRIBUTION_NAME_MAP = {
     'centos-7': Distribution(name="centos", version="7"),
     'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
-    'ubuntu-15.10': Distribution(name="ubuntu", version="15.10"),
+    'ubuntu-16.04': Distribution(name="ubuntu", version="16.04"),
 }
 
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
@@ -596,6 +596,21 @@ IGNORED_WARNINGS = {
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
+
+        # /opt/flocker/lib/python2.7/site-packages/sphinx/locale/.tx
+        'hidden-file-or-dir',
+
+        # /opt/flocker/lib/python2.7/site-packages/pbr/tests/testpackage/doc/source/conf.py
+        'script-without-shebang',
+
+        # E.g.
+        # /opt/flocker/lib/python2.7/site-packages/sphinx/locale/bn/LC_MESSAGES/sphinx.mo
+        'file-not-in-%lang',
+
+        # Twisted 16.6 includes an executable C source file.
+        # https://twistedmatrix.com/trac/ticket/8921
+        'spurious-executable-perm /opt/flocker/lib/python2.7/site-packages/twisted/internet/iocpreactor/iocpsupport/iocpsupport.c', # noqa
+
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
@@ -642,6 +657,11 @@ IGNORED_WARNINGS = {
         # Fixed upstream, but not released.
         'executable-not-elf-or-script',
 
+        # libffi installs shared libraries with executable bit setContent
+        # '14:59:26 E: clusterhq-python-flocker: shlib-with-executable-bit
+        # opt/flocker/lib/python2.7/site-packages/.libs_cffi_backend/libffi-72499c49.so.6.0.4
+        'shlib-with-executable-bit',
+
         # Our omnibus packages are never going to be used by upstream so
         # there's no bug to close.
         # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
@@ -687,6 +707,18 @@ IGNORED_WARNINGS = {
         # wheels from PyPI:
         # https://github.com/pypa/manylinux/issues/59
         "hardening-no-relro",
+
+        # Ubuntu Wily lintian complains about missing changelog.
+        # https://lintian.debian.org/tags/debian-changelog-file-missing-or-wrong-name.html
+        "debian-changelog-file-missing-or-wrong-name",
+
+        # The alabaster package contains some Google AdSense bugs.
+        # https://lintian.debian.org/tags/privacy-breach-google-adsense.html
+        "privacy-breach-google-adsense",
+
+        # Only occurs when building locally
+        "non-standard-dir-perm",
+        "non-standard-file-perm",
     ),
 }
 
@@ -867,10 +899,10 @@ def omnibus_package_builder(
     return BuildSequence(
         steps=(
             InstallVirtualEnv(virtualenv=virtualenv),
-            InstallApplication(virtualenv=virtualenv,
-                               package_uri='pip==8.1.1'),
-            InstallApplication(virtualenv=virtualenv,
-                               package_uri='-r/flocker/requirements.txt'),
+            InstallApplication(
+                virtualenv=virtualenv,
+                package_uri='-r/flocker/requirements/flocker.txt'
+            ),
             InstallApplication(virtualenv=virtualenv,
                                package_uri=package_uri),
             # get_package_version_step must be run before steps that reference
@@ -919,8 +951,6 @@ def omnibus_package_builder(
             # change this you may also want to change entry_points in setup.py.
             CreateLinks(
                 links=[
-                    (FilePath('/opt/flocker/bin/flocker-deploy'),
-                     flocker_cli_path),
                     (FilePath('/opt/flocker/bin/flocker'),
                      flocker_cli_path),
                     (FilePath('/opt/flocker/bin/flocker-ca'),
@@ -1087,7 +1117,9 @@ class DockerBuild(object):
     """
     def run(self):
         check_call(
-            ['docker', 'build', '--tag', self.tag, self.build_directory.path])
+            ['docker', 'build',
+             '--pull', '--tag', self.tag,
+             self.build_directory.path])
 
 
 @attributes(['tag', 'volumes', 'command'])
@@ -1167,9 +1199,10 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
     # send the context directory (and subdirectories) to the docker daemon.
     # To work around this, we copy a shared requirements file into the build
     # directory.
-    requirements_file = build_targets_directory.child('requirements.txt')
-    tmp_requirements = build_directory.child('requirements.txt')
-    requirements_file.copyTo(tmp_requirements)
+    requirements_directory = top_level.child('requirements')
+    requirements_directory.copyTo(
+        build_directory.child('requirements')
+    )
 
     return BuildSequence(
         steps=[

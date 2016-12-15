@@ -48,7 +48,6 @@ def getValidator(schema, schema_store):
     resolver = LocalRefResolver(
         base_uri=b'',
         referrer=schema, store=schema_store)
-    resolver.resolution_scope = b''
     return validator_for(schema)(
         schema, resolver=resolver, format_checker=draft4_format_checker)
 

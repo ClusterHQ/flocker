@@ -7,7 +7,21 @@ Unit tests for the Docker plugin script.
 from twisted.python.filepath import FilePath
 
 from ...testtools import TestCase
-from .._script import DockerPluginScript
+from .._script import DockerPluginScript, DockerPluginOptions
+
+
+class DockerPluginOptionsTests(TestCase):
+    """
+    Tests for ``DockerPluginOptions``.
+    """
+    def test_rest_api_port(self):
+        """
+        --rest-api-port is coerced to integer.
+        """
+        expected_port = 1234
+        options = DockerPluginOptions()
+        options.parseOptions([b"--rest-api-port=%s" % (expected_port,)])
+        self.assertEquals(expected_port, options["rest-api-port"])
 
 
 class DockerPluginScriptTests(TestCase):

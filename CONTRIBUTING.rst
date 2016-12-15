@@ -46,8 +46,8 @@ Have questions or need help?
 * You can open an account there to file issues, but we're also happy to accept a `GitHub issue`_ with feature requests or bug reports. `Security issues`_  should be reported directly to our security team.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
-.. _debugging documentation: https://docs.clusterhq.com/en/latest/administering/debugging.html
-.. _Security issues: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
+.. _debugging documentation: https://flocker-docs.clusterhq.com/en/latest/administering/debugging.html
+.. _Security issues: https://flocker-docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#reporting-security-issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
 
@@ -62,10 +62,24 @@ Install Flocker's development dependencies in a ``virtualenv`` by running the fo
 .. prompt:: bash $
 
    mkvirtualenv flocker
-   pip install --editable .[dev]
+   pip install --requirement dev-requirements.txt
 
 .. _Docker: https://www.docker.com/
 
+
+CentOS 7
+^^^^^^^^
+
+.. prompt:: bash $
+
+   sudo yum install git python-virtualenv libffi-devel openssl-devel gcc enchant-devel
+
+Ubuntu
+^^^^^^
+
+.. prompt:: bash $
+
+   sudo apt-get install git virtualenvwrapper python-dev libffi-dev libssl-dev enchant
 
 Running Tests
 =============
@@ -90,6 +104,16 @@ In addition, ``tox`` needs to be run as root:
    sudo tox
 
 Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in a virtual machine.
+
+
+Running Lint Tests
+==================
+
+You can run ``flake8`` and ``pylint`` tests by doing:
+
+.. prompt:: bash $
+
+   tox -e lint
 
 
 Documentation
@@ -207,4 +231,4 @@ Once you have submitted an issue via email, you should receive an acknowledgment
 
 .. _JIRA: https://clusterhq.atlassian.net/secure/Dashboard.jspa
 .. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
-.. _reported publicly: https://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us
+.. _reported publicly: https://flocker-docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us

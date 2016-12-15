@@ -22,7 +22,6 @@ from docker.tls import TLSConfig
 from twisted.internet import defer
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
-from twisted.python.procutils import which
 from twisted.internet import reactor
 from twisted.internet.error import ProcessTerminated
 from twisted.internet.task import deferLater
@@ -66,8 +65,8 @@ except ImportError:
 __all__ = [
     'require_cluster',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
-    'require_flocker_cli', 'create_application',
-    'create_attached_volume', 'get_docker_client', 'ACCEPTANCE_TEST_TIMEOUT'
+    'create_application', 'create_attached_volume',
+    'get_docker_client', 'ACCEPTANCE_TEST_TIMEOUT'
     ]
 
 
@@ -75,13 +74,6 @@ __all__ = [
 # safer to wait at least 5 minutes per test, as most tests have to do at
 # least 2 operations in series (cleanup then run test).
 ACCEPTANCE_TEST_TIMEOUT = timedelta(minutes=5)
-
-
-# XXX This assumes that the desired version of flocker-cli has been installed.
-# Instead, the testing environment should do this automatically.
-# See https://clusterhq.atlassian.net/browse/FLOC-901.
-require_flocker_cli = skipUnless(which("flocker-deploy"),
-                                 "flocker-deploy not installed")
 
 require_mongo = skipUnless(
     PYMONGO_INSTALLED, "PyMongo not installed")
@@ -282,6 +274,34 @@ require_moving_backend = skip_backend(
     reason="doesn't support moving")
 
 
+def skip_distribution(unsupported, reason):
+    """
+    Create decorator that skips a test if the distribution doesn't support the
+    operations required by the test.
+
+    :param supported: List of supported volume backends for this test.
+    :param reason: The reason the backend isn't supported.
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that should be skipped.
+        """
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            distribution = environ.get("FLOCKER_ACCEPTANCE_DISTRIBUTION")
+            if distribution in unsupported:
+                raise SkipTest(
+                    "Distribution not supported: "
+                    "'{distribution}' ({reason}).".format(
+                        distribution=distribution,
+                        reason=reason,
+                    )
+                )
+            return test_method(test_case, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def get_default_volume_size():
     """
     :returns int: the default volume size (in bytes) supported by the
@@ -388,7 +408,7 @@ class Node(PClass):
         :param argv: Additional arguments for the script.
         """
         script = NODE_SCRIPTS.child(python_script + ".py").getContent()
-        return self.run_as_root([b"python", b"-c", script] +
+        return self.run_as_root([b"python2.7", b"-c", script] +
                                 list(argv))
 
 
@@ -609,7 +629,6 @@ class Cluster(PClass):
             self.base_url + b"/configuration/containers",
             data=dumps(properties),
             headers={b"content-type": b"application/json"},
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, CREATED)
@@ -631,7 +650,6 @@ class Cluster(PClass):
             name.encode("ascii"),
             data=dumps({u"node_uuid": node_uuid}),
             headers={b"content-type": b"application/json"},
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -650,7 +668,6 @@ class Cluster(PClass):
         request = self.treq.delete(
             self.base_url + b"/configuration/containers/" +
             name.encode("ascii"),
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -666,7 +683,6 @@ class Cluster(PClass):
         """
         request = self.treq.get(
             self.base_url + b"/configuration/containers",
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -682,7 +698,6 @@ class Cluster(PClass):
         """
         request = self.treq.get(
             self.base_url + b"/state/containers",
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -733,7 +748,6 @@ class Cluster(PClass):
         """
         request = self.treq.get(
             self.base_url + b"/state/nodes",
-            persistent=False
         )
 
         request.addCallback(check_and_decode_json, OK)
@@ -870,7 +884,7 @@ class Cluster(PClass):
                 lambda item: self.remove_container(item[u"name"]),
             )
             return timeout(
-                reactor, cleaning_containers, 30,
+                reactor, cleaning_containers, 60,
                 Exception("Timed out cleaning up Flocker containers"),
             )
 
@@ -1283,7 +1297,7 @@ def create_python_container(test_case, cluster, parameters, script,
     """
     parameters = parameters.copy()
     parameters[u"image"] = u"python:2.7-slim"
-    parameters[u"command_line"] = [u"python", u"-c",
+    parameters[u"command_line"] = [u"python2.7", u"-c",
                                    script.getContent().decode("ascii")] + list(
                                        additional_arguments)
     if u"restart_policy" not in parameters:

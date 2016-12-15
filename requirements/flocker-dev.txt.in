@@ -1,0 +1,17 @@
+# Use a local fork of mimic until a new upstream version is released.
+# FLOC-4513
+--find-links git+https://github.com/ClusterHQ/mimic@2.1.0+chq2#egg=mimic-2.1.0+chq2
+mimic
+# Required by flocker.acceptance.integration.test_postgres
+pg8000
+pycrypto
+# Sphinx docs dependencies
+# enchant.tokenize is not detected by snakefood
+pyenchant
+# Required by flocker.acceptance.integration.test_mongodb
+pymongo
+sphinx-prompt
+sphinxcontrib-spelling
+# XXX: This shouldn't be here. It's only needed by admin.packaging module but
+# buildbot doesn't install the admin dependencies
+virtualenv

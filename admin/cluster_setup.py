@@ -45,6 +45,7 @@ class LibcloudRunner(OldLibcloudRunner):
     An alternative approach to setting up a cluster using
     a libcloud-compatible provisioner.
     """
+
     def _setup_control_node(self, reactor, node, index):
         print "Selecting node {} for control service".format(node.name)
         certificates = Certificates.generate(
@@ -153,6 +154,10 @@ class LibcloudRunner(OldLibcloudRunner):
         )
 
         def finalize_cluster(cluster):
+            """
+            :param Cluster cluster: Description of the cluster.
+            :return: Cluster
+            """
             # Make node lists immutable.
             return Cluster(
                 all_nodes=pvector(cluster.all_nodes),
@@ -163,6 +168,9 @@ class LibcloudRunner(OldLibcloudRunner):
                 certificates=cluster.certificates,
                 dataset_backend_config_file=cluster.dataset_backend_config_file
             )
+
+        provisioning.addCallback(finalize_cluster)
+
         return provisioning
 
 
@@ -285,7 +293,7 @@ def generate_managed_section(cluster):
     Generate a managed configuration section for the given cluster.
     The section describes the nodes comprising the cluster.
 
-    :param Cluster cluser: The cluster.
+    :param Cluster cluster: The cluster.
     :return: The managed configuration.
     :rtype: dict
     """
@@ -311,7 +319,7 @@ def create_managed_config(base_config, cluster):
     backend configurations and the cluster metadata.
 
     :param dict base_config: The base configuration.
-    :param Cluster cluser: The cluster.
+    :param Cluster cluster: The cluster.
     :return: The new configuration with the managed section.
     :rtype: dict
     """
@@ -329,7 +337,7 @@ def save_managed_config(directory, base_config, cluster):
     :param FilePath directory: Directory where the new configuration is saved
         in a file named "managed.yaml".
     :param dict base_config: The base configuration.
-    :param Cluster cluser: The cluster.
+    :param Cluster cluster: The cluster.
     """
     managed_config_file = directory.child("managed.yaml")
     managed_config = create_managed_config(base_config, cluster)
@@ -390,7 +398,7 @@ def main(reactor, args, base_path, top_level):
         for node in cluster.all_nodes:
             capture_journal(reactor, node.address,
                             remote_logs_file).addErrback(write_failure)
-    elif options['distribution'] in ('ubuntu-14.04', 'ubuntu-15.10'):
+    elif options['distribution'] in ('ubuntu-14.04',):
         remote_logs_file = open("remote_logs.log", "a")
         for node in cluster.all_nodes:
             capture_upstart(reactor, node.address,
@@ -469,6 +477,7 @@ def wait_for_nodes(reactor, client, count):
     :return: ``Deferred`` firing when the number of nodes in the cluster
         reaches the target.
     """
+
     def got_all_nodes():
         d = client.list_nodes()
         d.addErrback(write_failure)

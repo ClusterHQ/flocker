@@ -1,0 +1,55 @@
+# Libcloud is not detected by snakefood
+apache-libcloud
+bitmath
+boto
+boto3
+botocore
+characteristic
+python-cinderclient
+docker-py
+docutils
+effect
+eliot
+# Included in the Flocker package to assist with debugging.
+eliot-tree
+google-api-python-client
+# Not used directly by Flocker, but allows boto GCE plugins to load.
+google-compute-engine
+hypothesis
+ipaddr
+jsonschema
+keystoneauth1
+# FLOC-4410 keystoneclient 3.0.0 moves some exceptions around.
+python-keystoneclient < 3.0.0
+python-keystoneclient-rackspace
+klein
+machinist
+mmh3
+# Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
+ndg-httpsclient
+netifaces
+python-novaclient
+oauth2client
+# XXX This is here to ensure that buildbot installs a version of pip and
+# setuptools capable of parsing pkg_resources environment markers
+pip >= 8.1.2
+pyOpenSSL
+psutil
+--find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq5#egg=pyrsistent-0.11.13+chq5
+pyrsistent
+pytz
+repoze.lru
+requests
+# Add a setuptools dependency to ensure that `pip` installs the latest version
+# instead of settling for the OS packaged version.
+# See: https://github.com/pyca/cryptography/issues/2838#issuecomment-221838467
+setuptools >= 22.0.5
+six
+Sphinx
+sphinxcontrib-httpdomain
+testtools
+treq
+Twisted
+txeffect
+PyYAML
+zope.interface

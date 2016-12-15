@@ -4,11 +4,13 @@
 Persistence of cluster configuration.
 """
 
-from json import dumps, loads
-from uuid import UUID
+from base64 import b16encode
 from calendar import timegm
 from datetime import datetime
-from hashlib import sha256
+from json import dumps, loads
+from mmh3 import hash_bytes as mmh3_hash_bytes
+from uuid import UUID
+from collections import Set, Mapping, Iterable
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
@@ -23,7 +25,9 @@ from twisted.internet.task import LoopingCall
 
 from weakref import WeakKeyDictionary
 
-from ._model import SERIALIZABLE_CLASSES, Deployment, Configuration
+from ._model import (
+    SERIALIZABLE_CLASSES, Deployment, Configuration, GenerationHash
+)
 
 # The class at the root of the configuration tree.
 ROOT_CLASS = Deployment
@@ -34,7 +38,7 @@ _CLASS_MARKER = u"$__class__$"
 
 # The latest configuration version. Configuration versions are
 # always integers.
-_CONFIG_VERSION = 4
+_CONFIG_VERSION = 6
 
 # Map of serializable class names to classes
 _CONFIG_CLASS_MAP = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
@@ -163,6 +167,65 @@ class ConfigurationMigration(object):
         }
         return dumps(decoded_config)
 
+    @classmethod
+    def upgrade_from_v4(cls, config):
+        """
+        Migrate a v4 JSON configuration to v5.
+
+        :param bytes config: The v4 JSON data.
+        :return bytes: The v5 JSON data.
+        """
+        decoded_config = loads(config)
+        decoded_config[u"version"] = 5
+        try:
+            nodes = decoded_config[u"deployment"][u"nodes"]
+        except KeyError:
+            pass
+        else:
+            new_node_values = []
+            for n in nodes:
+                new_node = n
+                new_node[u"applications"] = {
+                    u"values": [(a[u"name"], a) for a in n[u"applications"]],
+                    _CLASS_MARKER: "PMap"
+                }
+                new_node_values.append((new_node["uuid"], new_node))
+            decoded_config[u"deployment"][u"nodes"] = {
+                u"values": new_node_values,
+                _CLASS_MARKER: "PMap"
+            }
+        return dumps(decoded_config)
+
+    @classmethod
+    def upgrade_from_v5(cls, config):
+        """
+        Migrate a v5 JSON configuration to v6.
+
+        :param bytes config: The v5 JSON data.
+        :return bytes: The v6 JSON data.
+        """
+        decoded_config = loads(config)
+        decoded_config[u"version"] = 6
+        try:
+            nodes = decoded_config[u"deployment"][u"nodes"]
+        except KeyError:
+            pass
+        else:
+            new_node_values = []
+            for node in nodes[u"values"]:
+                uuid = node[0]
+                applications = node[1][u"applications"][u"values"]
+                for app in applications:
+                    app[1].update({u'swappiness': 0})
+                new_node = node[1]
+                new_node[u"applications"][u"values"] = applications
+                new_node_values.append((uuid, new_node))
+            decoded_config[u"deployment"][u"nodes"] = {
+                u"values": new_node_values,
+                _CLASS_MARKER: "PMap"
+            }
+        return dumps(decoded_config)
+
 
 def _to_serializables(obj):
     """
@@ -213,7 +276,11 @@ def _is_pyrsistent(obj):
 
 
 _BASIC_JSON_TYPES = frozenset([str, unicode, int, long, float, bool])
-_BASIC_JSON_COLLECTIONS = frozenset([dict, list, tuple])
+_BASIC_JSON_LISTS = frozenset([list, tuple])
+_BASIC_JSON_COLLECTIONS = frozenset([dict]).union(_BASIC_JSON_LISTS)
+
+
+_UNCACHED_SENTINEL = object()
 
 
 _cached_dfs_serialize_cache = WeakKeyDictionary()
@@ -248,8 +315,16 @@ def _cached_dfs_serialize(input_object):
     else:
         if _is_pyrsistent(input_object):
             is_pyrsistent = True
-            if input_object in _cached_dfs_serialize_cache:
-                return _cached_dfs_serialize_cache[input_object]
+            # Using ``dict.get`` and a sentinel rather than the more pythonic
+            # try/except KeyError for performance. This function is highly
+            # recursive and the KeyError is guaranteed to happen the first
+            # time every object is serialized. We do not want to incur the cost
+            # of a caught exception for every pyrsistent object ever
+            # serialized.
+            cached_value = _cached_dfs_serialize_cache.get(input_object,
+                                                           _UNCACHED_SENTINEL)
+            if cached_value is not _UNCACHED_SENTINEL:
+                return cached_value
         obj = _to_serializables(input_object)
 
     result = obj
@@ -266,6 +341,120 @@ def _cached_dfs_serialize(input_object):
         _cached_dfs_serialize_cache[input_object] = result
 
     return result
+
+# A couple tokens that are used below in the generation hash.
+_NULLSET_TOKEN = mmh3_hash_bytes(b'NULLSET')
+_MAPPING_TOKEN = mmh3_hash_bytes(b'MAPPING')
+_STR_TOKEN = mmh3_hash_bytes(b'STRING')
+
+_generation_hash_cache = WeakKeyDictionary()
+
+
+def _xor_bytes(aggregating_bytearray, updating_bytes):
+    """
+    Aggregate bytes into a bytearray using XOR.
+
+    This function has a somewhat particular function signature in order for it
+    to be compatible with a call to `reduce`
+
+    :param bytearray aggregating_bytearray: Resulting bytearray to aggregate
+        the XOR of both input arguments byte-by-byte.
+
+    :param bytes updating_bytes: Additional bytes to be aggregated into the
+        other argument. It is assumed that this has the same size as
+        aggregating_bytearray.
+
+    :returns: aggregating_bytearray, after it has been modified by XORing all
+        of the bytes in the input bytearray with ``updating_bytes``.
+    """
+    for i in xrange(len(aggregating_bytearray)):
+        aggregating_bytearray[i] ^= ord(updating_bytes[i])
+    return aggregating_bytearray
+
+
+def generation_hash(input_object):
+    """
+    This computes the mmh3 hash for an input object, providing a consistent
+    hash of deeply persistent objects across python nodes and implementations.
+
+    :returns: An mmh3 hash of input_object.
+    """
+    # Ensure this is a quick function for basic types:
+    # Note that ``type(x) in frozenset([str, int])`` is faster than
+    # ``isinstance(x, (str, int))``.
+    input_type = type(input_object)
+    if (
+            input_object is None or
+            input_type in _BASIC_JSON_TYPES
+    ):
+        if input_type == unicode:
+            input_type = bytes
+            input_object = input_object.encode('utf8')
+
+        if input_type == bytes:
+            # Add a token to identify this as a string. This ensures that
+            # strings like str('5') are hashed to different values than values
+            # who have an identical JSON representation like int(5).
+            object_to_process = b''.join([_STR_TOKEN, bytes(input_object)])
+        else:
+            # For non-string objects, just hash the JSON encoding.
+            object_to_process = dumps(input_object)
+        return mmh3_hash_bytes(object_to_process)
+
+    is_pyrsistent = _is_pyrsistent(input_object)
+    if is_pyrsistent:
+        cached = _generation_hash_cache.get(input_object, _UNCACHED_SENTINEL)
+        if cached is not _UNCACHED_SENTINEL:
+            return cached
+
+    object_to_process = input_object
+
+    if isinstance(object_to_process, PClass):
+        object_to_process = object_to_process._to_dict()
+
+    if isinstance(object_to_process, Mapping):
+        # Union a mapping token so that empty maps and empty sets have
+        # different hashes.
+        object_to_process = frozenset(object_to_process.iteritems()).union(
+            [_MAPPING_TOKEN]
+        )
+
+    if isinstance(object_to_process, Set):
+        sub_hashes = (generation_hash(x) for x in object_to_process)
+        result = bytes(
+            reduce(_xor_bytes, sub_hashes, bytearray(_NULLSET_TOKEN))
+        )
+    elif isinstance(object_to_process, Iterable):
+        result = mmh3_hash_bytes(b''.join(
+            generation_hash(x) for x in object_to_process
+        ))
+    else:
+        # XXX This code encodes *other* types to JSON bytes before hashing, but
+        # the JSON representations of FilePath and UUID are dicts with
+        # unpredictable key order leading to different hashes on python
+        # interpreters with different PYTHONHASHSEED. See FLOC-4554.
+        result = mmh3_hash_bytes(wire_encode(object_to_process))
+
+    if is_pyrsistent:
+        _generation_hash_cache[input_object] = result
+
+    return result
+
+
+def make_generation_hash(x):
+    """
+    Creates a ``GenerationHash`` for a given argument.
+
+    Simple helper to call ``generation_hash`` and wrap it in the
+    ``GenerationHash`` ``PClass``.
+
+    :param x: The object to hash.
+
+    :returns: The ``GenerationHash`` for the object.
+    """
+    return GenerationHash(
+        hash_value=generation_hash(x)
+    )
 
 
 def wire_encode(obj):
@@ -515,7 +704,7 @@ class ConfigurationPersistenceService(MultiService):
         """
         config = Configuration(version=_CONFIG_VERSION, deployment=deployment)
         data = wire_encode(config)
-        self._hash = sha256(data).hexdigest()
+        self._hash = b16encode(mmh3_hash_bytes(data)).lower()
         self._config_path.setContent(data)
 
     def save(self, deployment):

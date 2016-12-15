@@ -41,7 +41,7 @@ appropriate attributes are set in each state.
 
 from pyrsistent import PClass, field, pmap_field, CheckedPSet, pset
 
-from hypothesis.strategies import sampled_from, fixed_dictionaries, just
+from hypothesis.strategies import composite, sampled_from
 
 from twisted.python.constants import NamedConstant
 
@@ -130,7 +130,8 @@ class TaggedUnionInvariant(PClass):
         return (True, "")
 
 
-def tagged_union_strategy(type_, attr_strategies):
+@composite
+def tagged_union_strategy(draw, type_, attr_strategies):
     """
     Create a strategy for building a type with a ``TaggedUnionInvariant``.
 
@@ -140,17 +141,12 @@ def tagged_union_strategy(type_, attr_strategies):
     :type attr_strategies: ``dict`` mapping ``str`` to ``SearchStrategy`s.
     """
     invariant = type_.__invariant__
-
-    def build(tag):
-        args = {
-            invariant.tag_attribute: just(tag),
-        }
-        args.update({
-            attribute: strategy
-            for attribute, strategy in attr_strategies.items()
-            if (attribute in invariant.attributes_for_tag[tag] or
-                attribute not in invariant._all_attributes)
-        })
-        return fixed_dictionaries(args).map(lambda kwargs: type_(**kwargs))
-
-    return sampled_from(invariant._allowed_tags).flatmap(build)
+    tag = draw(sampled_from(invariant._allowed_tags))
+    attributes = {invariant.tag_attribute: tag}
+    for name, strategy in attr_strategies.items():
+        if (
+                name in invariant.attributes_for_tag[tag]
+                or name not in invariant._all_attributes
+        ):
+            attributes[name] = draw(strategy)
+    return type_(**attributes)
