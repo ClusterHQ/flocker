@@ -506,8 +506,9 @@ common_cli:
     # we provide one by starting a webserver and pointing the tests
     # to look over there
     cd ${REPO_PATH}
+    local distribution="${DISTRIBUTION_NAME_PACKAGE:-DISTRIBUTION_NAME}"
     # create a repo on either centos or ubuntu
-    case "${DISTRIBUTION_NAME}" in
+    case "${distribution}" in
         ubuntu*)
             sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
             ;;
@@ -515,7 +516,7 @@ common_cli:
             sudo createrepo .
             ;;
         *)
-            echo "ERROR: Unsupported distribution '${DISTRIBUTION_NAME}'." >&2
+            echo "ERROR: Unsupported distribution '${distribution}'." >&2
             exit 1
             ;;
     esac
