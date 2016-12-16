@@ -488,7 +488,7 @@ common_cli:
     sudo mkdir -p ${REPO_PATH}
     ${venv}/bin/python admin/build-package \
     --destination-path ${REPO_PATH} \
-    --distribution ${DISTRIBUTION_NAME} \
+    --distribution ${DISTRIBUTION_NAME_PACKAGE:-$DISTRIBUTION_NAME} \
     /flocker/dist/Flocker-${FLOCKER_VERSION}.tar.gz
 
   build_repo_metadata: &build_repo_metadata |
@@ -1025,6 +1025,8 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_RHEL_7_for:
+      # For RHEL7 we build Centos-7 packages but put them in a repo named RHEL7
+      # XXX We should have a way to build RHEL7 packages.
       on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_modules: *run_full_acceptance_modules
       with_steps:
@@ -1032,6 +1034,7 @@ job_type:
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
                    'export DISTRIBUTION_NAME=rhel-7',
+                   'export DISTRIBUTION_NAME_PACKAGE=centos-7',
                    *check_version,
                    *build_sdist, *build_package,
                    *build_repo_metadata,
