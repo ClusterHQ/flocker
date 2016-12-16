@@ -444,7 +444,12 @@ common_cli:
     # The admin/run-acceptance-tests will provision a flocker cluster with a
     # single node since the loopback backend doesn't support moving data across
     # hosts.
-    EXTERNAL_IP=$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    EXTERNAL_IP=$(\
+        curl \
+            --silent \
+            --header "Metadata-Flavor: Google" \
+            http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+    )
     BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} --number-of-nodes 1 \
@@ -459,7 +464,12 @@ common_cli:
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
-    EXTERNAL_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    EXTERNAL_IP=$(\
+        curl \
+            --silent \
+            --header "Metadata-Flavor: Google" \
+            http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+    )
     BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-client-tests \
     --distribution ${DISTRIBUTION_NAME} \
@@ -488,7 +498,7 @@ common_cli:
     sudo mkdir -p ${REPO_PATH}
     ${venv}/bin/python admin/build-package \
     --destination-path ${REPO_PATH} \
-    --distribution ${DISTRIBUTION_NAME} \
+    --distribution ${DISTRIBUTION_NAME_PACKAGE:-$DISTRIBUTION_NAME} \
     /flocker/dist/Flocker-${FLOCKER_VERSION}.tar.gz
 
   build_repo_metadata: &build_repo_metadata |
@@ -496,8 +506,9 @@ common_cli:
     # we provide one by starting a webserver and pointing the tests
     # to look over there
     cd ${REPO_PATH}
+    distribution="${DISTRIBUTION_NAME_PACKAGE:-$DISTRIBUTION_NAME}"
     # create a repo on either centos or ubuntu
-    case "${DISTRIBUTION_NAME}" in
+    case "${distribution}" in
         ubuntu*)
             sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
             ;;
@@ -505,7 +516,7 @@ common_cli:
             sudo createrepo .
             ;;
         *)
-            echo "ERROR: Unsupported distribution '${DISTRIBUTION_NAME}'." >&2
+            echo "ERROR: Unsupported distribution '${distribution}'." >&2
             exit 1
             ;;
     esac
@@ -1000,7 +1011,9 @@ job_type:
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
     run_acceptance_loopback_on_AWS_CentOS_7_for:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1024,8 +1037,41 @@ job_type:
       timeout: 45
       directories_to_delete: *run_acceptance_directories_to_delete
 
+    run_acceptance_loopback_on_AWS_RHEL_7_for:
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
+      with_modules: *run_full_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   # For RHEL7 we build Centos-7 packages but put them in a repo
+                   # named RHEL7.
+                   # XXX We should have a way to build RHEL7 packages.
+                   'export DISTRIBUTION_NAME=rhel-7',
+                   'export DISTRIBUTION_NAME_PACKAGE=centos-7',
+                   *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=${MODULE}',
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   *run_acceptance_loopback_tests,
+                   *convert_results_to_junit,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
+      timeout: 45
+      directories_to_delete: *run_acceptance_directories_to_delete
+
     run_acceptance_loopback_on_AWS_Ubuntu_Trusty_for:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1050,7 +1096,9 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_Ubuntu_Xenial_for:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1076,7 +1124,9 @@ job_type:
 
   run_client:
     run_client_installation_on_Ubuntu_Trusty:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1094,7 +1144,9 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_client_installation_on_Ubuntu_Xenial:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,

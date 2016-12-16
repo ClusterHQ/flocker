@@ -1,0 +1,11 @@
+[clusterhq]
+name=ClusterHQ for RHEL $releasever
+baseurl=https://s3.amazonaws.com/clusterhq-archive/centos/7/$basearch/
+enabled=1
+gpgcheck=0
+
+[clusterhq-testing]
+name=ClusterHQ development for RHEL $releasever
+baseurl=https://s3.amazonaws.com/clusterhq-archive/centos-testing/7/$basearch/
+enabled=0
+gpgcheck=0

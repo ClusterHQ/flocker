@@ -208,12 +208,12 @@ def get_repository_url(distribution, flocker_version):
                         archive_bucket=ARCHIVE_BUCKET,
                         key='centos',
                         ),
-        # Use CentOS packages for RHEL
-        'rhel-7.2': "https://{archive_bucket}.s3.amazonaws.com/"
-                    "{key}/clusterhq-release$(rpm -E %dist).centos."
+        # The RHEL meta-package points to the Centos-7 packages.
+        'rhel-7': "https://{archive_bucket}.s3.amazonaws.com/"
+                    "{key}/clusterhq-release$(rpm -E %dist)."
                     "noarch.rpm".format(
                         archive_bucket=ARCHIVE_BUCKET,
-                        key='centos',
+                        key='rhel',
                         ),
 
         # This could hardcode the version number instead of using
@@ -539,8 +539,6 @@ def _get_base_url_and_installer_for_distro(distribution, build_server, branch):
     """
     package = distribution
     if is_centos_or_rhel(distribution):
-        # Use CentOS 7 packages on RHEL.
-        package = 'centos-7'
         installer = install_commands_yum
     elif is_ubuntu(distribution):
         installer = install_commands_ubuntu
@@ -697,6 +695,39 @@ def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
         run('test `flocker-ca --version` = {}'.format(
             quote(_get_wheel_version(package_source))))
         ])
+
+
+def task_enable_root_logins(distribution):
+    """
+    Configure the SSH server to allow root login.
+
+    Allow root SSH login by inserting PermitRootLogin as the first line so as
+    to override later lines that may set it to ``PermitRootLogin no``.
+
+    RHEL7 is the only supported distribution that disallows root logins by
+    default but we perform the re-configuration on all distributions to for
+    consistency.
+
+    Ubuntu 14.04 calls the SSH service ``ssh`` rather than ``sshd``.
+    """
+    commands = [
+        sudo_from_args([
+            'sed', '-i', '1 i PermitRootLogin yes', '/etc/ssh/sshd_config'
+        ]),
+    ]
+    if is_systemd_distribution(distribution):
+        commands.append(
+            sudo_from_args([
+                'systemctl', 'restart', 'sshd'
+            ])
+        )
+    else:
+        commands.append(
+            sudo_from_args([
+                'service', 'ssh', 'restart'
+            ])
+        )
+    return sequence(commands)
 
 
 def task_install_ssh_key():
@@ -1840,7 +1871,12 @@ def provision_for_any_user(node, package_source, variants=()):
         address=node.address,
         commands=retry(task_install_ssh_key(), for_thirty_seconds),
     ))
-
+    # Some distributions configure SSH to prevent logging in as the root user.
+    commands.append(run_remotely(
+        username=username,
+        address=node.address,
+        commands=task_enable_root_logins(node.distribution),
+    ))
     commands.append(
         provision_as_root(node, package_source, variants))
 

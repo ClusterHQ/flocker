@@ -94,7 +94,7 @@ RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-rel
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
-To build and upload these packages, set up `gsutil` with S3 credentials on a machine with the operating system for which the package is for.
+To build and upload these packages, set up `awscli` with S3 credentials on a machine with the operating system for which the package is for.
 Go to the relevant directory in :file:`admin/release-packaging` and run:
 
 .. prompt:: bash $
@@ -103,7 +103,7 @@ Go to the relevant directory in :file:`admin/release-packaging` and run:
    # Package creation files are in directories which match their equivalent S3 keys.
    export S3KEY=$(basename "$PWD")
    rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
-   gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm s3://clusterhq-archive/${S3KEY}/clusterhq-release$(rpm -E %dist).noarch.rpm
+   aws s3 cp --acl public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm s3://clusterhq-archive/${S3KEY}/clusterhq-release$(rpm -E %dist).noarch.rpm
 
 
 Legacy

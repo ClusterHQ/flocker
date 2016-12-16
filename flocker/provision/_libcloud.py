@@ -46,10 +46,11 @@ def get_image(driver, image_name):
 
     :param driver: The libcloud driver to query for images.
     """
+    image_names = list(s.name for s in driver.list_images())
     try:
-        return [s for s in driver.list_images() if s.name == image_name][0]
+        return list(n for n in image_names if n == image_name)[0]
     except IndexError:
-        raise ValueError("Unknown image.", image_name)
+        raise ValueError("Unknown image.", image_name, image_names)
 
 
 @implementer(INode)
@@ -210,7 +211,14 @@ class LibcloudProvisioner(object):
         """
         size = self._default_size
 
-        image_name = self._image_names[distribution]
+        try:
+            image_name = self._image_names[distribution]
+        except KeyError:
+            raise Exception(
+                "Distribution not supported with provider",
+                distribution,
+                self._driver.name,
+            )
 
         create_node_arguments = self._create_node_arguments()
 
