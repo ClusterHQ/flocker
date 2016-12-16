@@ -78,7 +78,7 @@ def _enable_boto_logging():
     Make boto log activity using Eliot.
     """
     logger = logging.getLogger("boto")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     logger.addHandler(EliotLogHandler())
 
 _enable_boto_logging()
