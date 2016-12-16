@@ -702,9 +702,17 @@ def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
 def task_enable_root_logins(distribution):
     """
     Configure the SSH server to allow root login.
+
+    Allow root SSH login by inserting PermitRootLogin as the first line so as
+    to override later lines that may set it to ``PermitRootLogin no``.
+
+    RHEL7 is the only supported distribution that disallows root logins by
+    default but we perform the re-configuration on all distributions to for
+    consistency.
+
+    Ubuntu 14.04 calls the SSH service ``ssh`` rather than ``sshd``.
     """
     commands = [
-        # Allow root SSH login by inserting PermitRootLogin as the first line.
         sudo_from_args([
             'sed', '-i', '1 i PermitRootLogin yes', '/etc/ssh/sshd_config'
         ]),
@@ -716,7 +724,6 @@ def task_enable_root_logins(distribution):
             ])
         )
     else:
-        # Ubuntu 14.04 calls the service ssh rather than sshd.
         commands.append(
             sudo_from_args([
                 'service', 'ssh', 'restart'
