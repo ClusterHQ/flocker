@@ -36,7 +36,7 @@ _usernames = {
     'centos-7': 'centos',
     'ubuntu-14.04': 'ubuntu',
     'ubuntu-16.04': 'ubuntu',
-    'rhel-7.2': 'ec2-user',
+    'rhel-7': 'ec2-user',
 }
 
 
