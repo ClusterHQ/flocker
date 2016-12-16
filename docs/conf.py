@@ -31,6 +31,7 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 extensions = [
     'sphinx.ext.extlinks',
     'sphinx.ext.ifconfig',
+    'sphinx.ext.intersphinx',
     'flocker.provision._sphinx',
     'flocker.docs.version_extensions',
     'sphinx-prompt',
@@ -151,8 +152,6 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
-# The HTMLTranslator class
-html_translator_class = 'flocker.docs.bootstrap.HTMLWriter'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = 'clusterhq'
@@ -337,6 +336,25 @@ linkcheck_ignore = [
     r'https://docs.staging.clusterhq.com/',
     r'https://docs.docker.com/\S*',
 ]
+
+# XXX We use a Sphinx extension called autoklein which generates REST API docs
+# that include `:http:obj:` references.
+# Maybe these should link to http://www.json.org/ but for now I'll just ignore
+# them.
+nitpick_ignore = [
+    ("http:obj", "string"),
+    ("http:obj", "boolean"),
+    ("http:obj", "integer|null"),
+    ("http:obj", "object"),
+    ("http:obj", "number|null"),
+]
+
+# Allows `:py:mod:` references to work.
+# Copied from https://twistedmatrix.com/trac/ticket/4582
+intersphinx_mapping = {
+    'py2': ('http://docs.python.org/2.7', None),
+    'py3': ('http://docs.python.org/3.3', None),
+}
 
 
 def setup(app):

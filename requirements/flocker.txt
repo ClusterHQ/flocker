@@ -1,9 +1,9 @@
 # Libcloud is not detected by snakefood
-apache-libcloud==1.3.0
+apache-libcloud==1.4.0
 bitmath==1.3.1.2
 boto==2.43.0
-boto3==1.4.1
-botocore==1.4.70
+boto3==1.4.2
+botocore==1.4.83
 characteristic==14.3.0
 python-cinderclient==1.9.0
 docker-py==1.10.6
@@ -14,11 +14,11 @@ eliot==0.11.0
 eliot-tree==15.3.0
 google-api-python-client==1.5.5
 # Not used directly by Flocker, but allows boto GCE plugins to load.
-google-compute-engine==2.2.4
+google-compute-engine==2.3.1
 hypothesis==3.6.0
 ipaddr==2.1.11
 jsonschema==2.5.1
-keystoneauth1==2.15.0
+keystoneauth1==2.16.0
 # FLOC-4410 keystoneclient 3.0.0 moves some exceptions around.
 python-keystoneclient==2.3.1
 python-keystoneclient-rackspace==0.1.3
@@ -37,31 +37,31 @@ pyOpenSSL==16.2.0
 psutil==5.0.0
 --find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq5#egg=pyrsistent-0.11.13+chq5
 pyrsistent==0.11.13+chq5
-pytz==2016.7
+pytz==2016.10
 repoze.lru==0.6
 requests==2.10.0
 # Add a setuptools dependency to ensure that `pip` installs the latest version
 # instead of settling for the OS packaged version.
 # See: https://github.com/pyca/cryptography/issues/2838#issuecomment-221838467
-setuptools==28.8.0
+setuptools==30.2.0
 six==1.10.0
-Sphinx==1.4.8
+Sphinx==1.5
 sphinxcontrib-httpdomain==1.5.0
 testtools==2.2.0
 treq==15.1.0
-Twisted==16.5.0
+Twisted==16.6.0
 txeffect==0.9
 PyYAML==3.12
 zope.interface==4.3.2
 ## The following requirements were added by pip freeze:
 alabaster==0.7.9
-attrs==16.2.0
+attrs==16.3.0
 Babel==2.3.4
 backports.ssl-match-hostname==3.5.0.1
-cffi==1.8.3
+cffi==1.9.1
 constantly==15.1.0
-cryptography==1.5.3
-debtcollector==1.9.0
+cryptography==1.6
+debtcollector==1.10.0
 docker-pycreds==0.2.1
 enum34==1.1.6
 extras==1.0.0
@@ -82,10 +82,10 @@ MarkupSafe==0.23
 monotonic==1.2
 msgpack-python==0.4.8
 netaddr==0.7.18
-oslo.config==3.19.0
-oslo.i18n==3.10.0
-oslo.serialization==2.14.0
-oslo.utils==3.18.0
+oslo.config==3.21.0
+oslo.i18n==3.11.0
+oslo.serialization==2.15.0
+oslo.utils==3.20.0
 pbr==1.10.0
 positional==1.1.1
 prettytable==0.7.2
@@ -94,7 +94,7 @@ pyasn1-modules==0.0.8
 pycparser==2.17
 Pygments==2.1.3
 pyparsing==2.1.10
-python-dateutil==2.5.3
+python-dateutil==2.6.0
 python-mimeparse==1.6.0
 rfc3986==0.4.1
 rsa==3.4.2
@@ -102,11 +102,11 @@ s3transfer==0.1.9
 service-identity==16.0.0
 simplejson==3.10.0
 snowballstemmer==1.2.1
-stevedore==1.18.0
-toolz==0.8.0
+stevedore==1.19.1
+toolz==0.8.1
 traceback2==1.4.0
 unittest2==1.1.0
 uritemplate==3.0.0
-websocket-client==0.37.0
+websocket-client==0.39.0
 Werkzeug==0.11.11
 wrapt==1.10.8

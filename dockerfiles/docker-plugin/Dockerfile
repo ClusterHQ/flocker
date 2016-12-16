@@ -20,4 +20,4 @@ RUN \
 
 VOLUME /etc/flocker
 
-ENTRYPOINT ["/usr/sbin/flocker-dataset-agent", "--agent-config=/etc/flocker/agent.yml"]
+ENTRYPOINT ["/opt/flocker/bin/flocker-docker-plugin", "--agent-config=/etc/flocker/agent.yml"]

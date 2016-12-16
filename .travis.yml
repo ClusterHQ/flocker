@@ -9,18 +9,41 @@ language: python
 
 python: 2.7
 
-cache: pip
+cache:
+  pip: true
+  apt: true
 
 install:
-  - pip install tox
+  - pip install tox awscli
 
 env:
-  - TOX_ENV=lint
+  - FLOCKER_BUILDER=test-admin
+  - FLOCKER_BUILDER=test-benchmark
+  - FLOCKER_BUILDER=test-flocker
+  - FLOCKER_BUILDER=lint
+  - FLOCKER_BUILDER=docs-lint
+  - FLOCKER_BUILDER=docs-spelling
+  - FLOCKER_BUILDER=docs-linkcheck
+  - FLOCKER_BUILDER=docs-html
+
+matrix:
+  allow_failures:
+  - env: FLOCKER_BUILDER=docs-linkcheck
 
 script:
-  - tox -e $TOX_ENV
+  - .travis/script
+
+after_script:
+  - .travis/after_script
 
 addons:
   apt:
     packages:
     - python-enchant
+
+# Only run tests on push on a few branches.
+# Test on PR should be execute for all branches and forks.
+branches:
+  only:
+  - master
+  - /^release\/flocker-.*$/
