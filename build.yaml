@@ -464,7 +464,12 @@ common_cli:
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
-    EXTERNAL_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    EXTERNAL_IP=$(\
+        curl \
+            --silent \
+            --header "Metadata-Flavor: Google" \
+            http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+    )
     BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-client-tests \
     --distribution ${DISTRIBUTION_NAME} \
