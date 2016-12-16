@@ -48,6 +48,7 @@ from flocker.provision._ssh import (
 )
 from flocker.provision._install import (
     ManagedNode,
+    deconfigure_kubernetes,
     task_pull_docker_images,
     uninstall_flocker,
     install_flocker,
@@ -305,7 +306,7 @@ class ManagedRunner(object):
         self.cert_path = cert_path
         self.logging_config = logging_config
 
-    def _upgrade_flocker(self, reactor, nodes, package_source):
+    def _upgrade_flocker(self, dispatcher, nodes, package_source):
         """
         Put the version of Flocker indicated by ``package_source`` onto all of
         the given nodes.
@@ -324,8 +325,6 @@ class ManagedRunner(object):
 
         :return: A ``Deferred`` that fires when the software has been upgraded.
         """
-        dispatcher = make_dispatcher(reactor)
-
         uninstalling = perform(dispatcher, uninstall_flocker(nodes))
         uninstalling.addErrback(write_failure, logger=None)
 
@@ -335,6 +334,7 @@ class ManagedRunner(object):
                 install_flocker(nodes, package_source),
             )
         installing = uninstalling.addCallback(install)
+
         return installing
 
     def ensure_keys(self, reactor):
@@ -349,12 +349,20 @@ class ManagedRunner(object):
         Don't start any nodes.  Give back the addresses of the configured,
         already-started nodes.
         """
+        dispatcher = make_dispatcher(reactor)
         if self.package_source is not None:
             upgrading = self._upgrade_flocker(
-                reactor, self._nodes, self.package_source
+                dispatcher, self._nodes, self.package_source
             )
         else:
             upgrading = succeed(None)
+
+        deconfiguring_kubernetes = upgrading.addCallback(
+            lambda _ignored: perform(
+                dispatcher,
+                deconfigure_kubernetes(self._nodes),
+            )
+        )
 
         def configure(ignored):
             return configured_cluster_for_nodes(
@@ -375,7 +383,7 @@ class ManagedRunner(object):
                 provider="managed",
                 logging_config=self.logging_config,
             )
-        configuring = upgrading.addCallback(configure)
+        configuring = deconfiguring_kubernetes.addCallback(configure)
         return configuring
 
     def stop_cluster(self, reactor):

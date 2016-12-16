@@ -13,6 +13,7 @@ from effect import Func, Effect, Constant, parallel
 from effect.retry import retry
 from time import time
 import yaml
+from hashlib import sha256
 
 from zope.interface import implementer
 
@@ -131,6 +132,17 @@ def is_systemd_distribution(distribution):
         is_centos_or_rhel(distribution) or
         distribution == "ubuntu-16.04"
     )
+
+_distribution_to_package_format = {
+    "centos-7": "rpm",
+    "rhel-7.2": "rpm",
+    "ubuntu-16.04": "deb",
+    "ubuntu-14.04": "deb",
+}
+
+
+def package_format_for_distribution(distribution):
+    return _distribution_to_package_format[distribution]
 
 
 def _from_args(sudo):
@@ -817,7 +829,7 @@ def task_install_api_certificates(api_cert, api_key):
         ])
 
 
-def task_enable_docker(distribution):
+def task_configure_docker(distribution):
     """
     Configure docker.
 
@@ -860,7 +872,6 @@ def task_enable_docker(distribution):
                     ExecStart=
                     ExecStart=/usr/bin/dockerd {} {}
                     """.format(unixsock_opt, docker_tls_options))),
-            run_from_args(["systemctl", "enable", "docker.service"]),
         ])
     elif is_ubuntu(distribution):
         return sequence([
@@ -871,6 +882,38 @@ def task_enable_docker(distribution):
             ])
     else:
         raise DistributionNotSupported(distribution=distribution)
+
+
+def task_start_docker(distribution):
+    """
+    Enable and (re)start the Docker daemon.
+    """
+    if is_systemd_distribution(distribution):
+        commands = [
+            run_from_args(["systemctl", "enable", "docker.service"]),
+            run_from_args(['systemctl', START, 'docker']),
+        ]
+    elif is_ubuntu(distribution):
+        commands = [
+            run_from_args(['service', 'docker', 'restart']),
+        ]
+    return sequence(commands)
+
+
+def task_start_kubelet(distribution):
+    """
+    Enable and (re)start the Kubernetes Kubelet.
+    """
+    if is_systemd_distribution(distribution):
+        commands = [
+            run_from_args(['systemctl', 'enable', 'kubelet']),
+            run_from_args(['systemctl', START, 'kubelet']),
+        ]
+    elif is_ubuntu(distribution):
+        commands = [
+            run_from_args(['service', 'kubelet', 'restart']),
+        ]
+    return sequence(commands)
 
 
 def open_firewalld(service):
@@ -962,12 +1005,10 @@ def task_enable_docker_plugin(distribution):
         return sequence([
             run_from_args(['systemctl', 'enable', 'flocker-docker-plugin']),
             run_from_args(['systemctl', START, 'flocker-docker-plugin']),
-            run_from_args(['systemctl', START, 'docker']),
         ])
     elif is_ubuntu(distribution):
         return sequence([
             run_from_args(['service', 'flocker-docker-plugin', 'restart']),
-            run_from_args(['service', 'docker', 'restart']),
         ])
     else:
         raise DistributionNotSupported(distribution=distribution)
@@ -1377,6 +1418,223 @@ def task_install_docker(distribution):
         timeout=5.0 * 60.0,
     )
 
+# Used for signing yum and apt repo metadata
+# pub   2048R/A7317B0F 2015-04-03 [expires: 2018-04-02]
+# uid   Google Cloud Packages Automatic Signing Key <gc-team@google.com>
+GOOGLE_CLOUD_PACKAGES_KEY_AUTOMATIC = """
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1
+
+mQENBFUd6rIBCAD6mhKRHDn3UrCeLDp7U5IE7AhhrOCPpqGF7mfTemZYHf/5Jdjx
+cOxoSFlK7zwmFr3lVqJ+tJ9L1wd1K6P7RrtaNwCiZyeNPf/Y86AJ5NJwBe0VD0xH
+TXzPNTqRSByVYtdN94NoltXUYFAAPZYQls0x0nUD1hLMlOlC2HdTPrD1PMCnYq/N
+uL/Vk8sWrcUt4DIS+0RDQ8tKKe5PSV0+PnmaJvdF5CKawhh0qGTklS2MXTyKFoqj
+XgYDfY2EodI9ogT/LGr9Lm/+u4OFPvmN9VN6UG+s0DgJjWvpbmuHL/ZIRwMEn/tp
+uneaLTO7h1dCrXC849PiJ8wSkGzBnuJQUbXnABEBAAG0QEdvb2dsZSBDbG91ZCBQ
+YWNrYWdlcyBBdXRvbWF0aWMgU2lnbmluZyBLZXkgPGdjLXRlYW1AZ29vZ2xlLmNv
+bT6JAT4EEwECACgFAlUd6rICGy8FCQWjmoAGCwkIBwMCBhUIAgkKCwQWAgMBAh4B
+AheAAAoJEDdGwginMXsPcLcIAKi2yNhJMbu4zWQ2tM/rJFovazcY28MF2rDWGOnc
+9giHXOH0/BoMBcd8rw0lgjmOosBdM2JT0HWZIxC/Gdt7NSRA0WOlJe04u82/o3OH
+WDgTdm9MS42noSP0mvNzNALBbQnlZHU0kvt3sV1YsnrxljoIuvxKWLLwren/GVsh
+FLPwONjw3f9Fan6GWxJyn/dkX3OSUGaduzcygw51vksBQiUZLCD2Tlxyr9NvkZYT
+qiaWW78L6regvATsLc9L/dQUiSMQZIK6NglmHE+cuSaoK0H4ruNKeTiQUw/EGFaL
+ecay6Qy/s3Hk7K0QLd+gl0hZ1w1VzIeXLo2BRlqnjOYFX4A=
+=HVTm
+-----END PGP PUBLIC KEY BLOCK-----
+"""
+
+# Used for signing RPM packages.
+# pub   2048R/3E1BA8D5 2015-06-24
+# uid   Google Cloud Packages RPM Signing Key <gc-team@google.com>
+GOOGLE_CLOUD_PACKAGES_KEY_RPM = """
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1
+
+mQENBFWKtqgBCADmKQWYQF9YoPxLEQZ5XA6DFVg9ZHG4HIuehsSJETMPQ+W9K5c5
+Us5assCZBjG/k5i62SmWb09eHtWsbbEgexURBWJ7IxA8kM3kpTo7bx+LqySDsSC3
+/8JRkiyibVV0dDNv/EzRQsGDxmk5Xl8SbQJ/C2ECSUT2ok225f079m2VJsUGHG+5
+RpyHHgoMaRNedYP8ksYBPSD6sA3Xqpsh/0cF4sm8QtmsxkBmCCIjBa0B0LybDtdX
+XIq5kPJsIrC2zvERIPm1ez/9FyGmZKEFnBGeFC45z5U//pHdB1z03dYKGrKdDpID
+17kNbC5wl24k/IeYyTY9IutMXvuNbVSXaVtRABEBAAG0Okdvb2dsZSBDbG91ZCBQ
+YWNrYWdlcyBSUE0gU2lnbmluZyBLZXkgPGdjLXRlYW1AZ29vZ2xlLmNvbT6JATgE
+EwECACIFAlWKtqgCGy8GCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEPCcOUw+
+G6jV+QwH/0wRH+XovIwLGfkg6kYLEvNPvOIYNQWnrT6zZ+XcV47WkJ+i5SR+QpUI
+udMSWVf4nkv+XVHruxydafRIeocaXY0E8EuIHGBSB2KR3HxG6JbgUiWlCVRNt4Qd
+6udC6Ep7maKEIpO40M8UHRuKrp4iLGIhPm3ELGO6uc8rks8qOBMH4ozU+3PB9a0b
+GnPBEsZdOBI1phyftLyyuEvG8PeUYD+uzSx8jp9xbMg66gQRMP9XGzcCkD+b8w1o
+7v3J3juKKpgvx5Lqwvwv2ywqn/Wr5d5OBCHEw8KtU/tfxycz/oo6XUIshgEbS/+P
+6yKDuYhRp6qxrYXjmAszIT25cftb4d4=
+=/PbX
+-----END PGP PUBLIC KEY BLOCK-----
+"""
+
+KUBERNETES_REPO_YUM = """
+[kubernetes]
+name=Kubernetes
+baseurl=http://yum.kubernetes.io/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+"""
+
+KUBERNETES_REPO_PATH_YUM = "/etc/yum.repos.d/kubernetes.repo"
+
+
+def kubeadm_token_from_cluster(cluster):
+    """
+    Generate a stable ``kubeadmin --token`` parameter for the supplied
+    ``cluster``.
+
+    See: https://github.com/kubernetes/kubernetes/blob/master/cmd/kubeadm/app/util/tokens.go # noqa
+
+    :param Cluster cluster: The cluster supplied by the acceptance test runner.
+    :returns: A "6<byte>.16<byte>" byte string in the format expected by
+        kubeadm --token.
+    """
+    #
+    hash_bytes = sha256(
+        cluster.certificates.cluster.certificate.getContent()
+    ).hexdigest().encode('ascii')
+    token = hash_bytes[:6] + b"." + hash_bytes[-16:]
+    return token
+
+
+def task_install_kubernetes_apt():
+    # The de-armored key must have a .gpg file extension
+    key_path = b"/etc/apt/trusted.gpg.d/google_cloud_packages_automatic.gpg"
+    return sequence([
+        # Upload the public key rather than downloading from the kubernetes
+        # servers every time.
+        put(GOOGLE_CLOUD_PACKAGES_KEY_AUTOMATIC, key_path + b".asc"),
+        # Install the key Kubernetes key
+        run(
+            command=b"apt-key --keyring {} add {}.asc".format(
+                key_path, key_path
+            )
+        ),
+        # Install Kubernetes repository
+        run(command=b"apt-get update"),
+        run(command=(
+            b"apt-get install -y "
+            b"apt-transport-https software-properties-common"
+        )),
+        run(command=(
+            b"add-apt-repository -y "
+            b'"deb http://apt.kubernetes.io/ '
+            b'kubernetes-$(lsb_release --codename --short) main"'
+        )),
+        run(command=b"apt-get update"),
+        # Install Kubernetes packages
+        run(command=(
+            b"apt-get install -y "
+            b"kubelet kubeadm kubectl kubernetes-cni"
+        ))
+    ])
+
+
+def task_install_kubernetes_yum():
+    key_paths = [
+        (GOOGLE_CLOUD_PACKAGES_KEY_AUTOMATIC,
+         b"/etc/pki/rpm-gpg/google_cloud_packages_automatic"),
+        (GOOGLE_CLOUD_PACKAGES_KEY_RPM,
+         b"/etc/pki/rpm-gpg/google_cloud_packages_rpm"),
+    ]
+    key_operations = []
+    for key_content, key_path in key_paths:
+        key_operations += [
+            put(key_content, key_path),
+            run(b"rpmkeys --import " + key_path)
+        ]
+    return sequence(
+        # Upload and import YUM and RPM signing keys
+        key_operations + [
+            # Upload the repo file
+            put(
+                KUBERNETES_REPO_YUM,
+                KUBERNETES_REPO_PATH_YUM
+            ),
+            # Install Kubernetes packages
+            # XXX The ebtables dependency isn't declared by the kubelet
+            # package. See https://github.com/kubernetes/release/pull/197
+            run(command=(
+                b"yum install -y "
+                b"ebtables kubelet kubeadm kubectl kubernetes-cni"
+            )),
+        ]
+    )
+
+_task_install_kubernetes_variants = {
+    'deb': task_install_kubernetes_apt,
+    'rpm': task_install_kubernetes_yum,
+}
+
+
+def task_install_kubernetes(distribution):
+    """
+    Install Kubernetes packages.
+
+    :param unicode distribution: The name of the target OS distribution.
+    :returns: an ``Effect`` for installing Kubernetes packages from the
+        Kubernetes repository.
+    """
+    package_format = package_format_for_distribution(distribution)
+    return _task_install_kubernetes_variants[package_format]()
+
+
+# XXX Maybe copy the entire configuration here to avoid failures due to flaky
+# downloads.
+KUBERNETES_ADDON_WEAVE = (
+    b"https://raw.githubusercontent.com"
+    b"/weaveworks/weave-kube/v1.7.2/weave-daemonset.yaml"
+)
+
+
+def task_configure_kubernetes_master(distribution, token):
+    """
+    Configure a Kubernetes master and allow that node to also run pods.
+
+    :param unicode distribution: The name of the target OS distribution.
+    :param bytes token: A ``kubeadm`` token.
+    :returns: an ``Effect`` for configuring the Kubernetes master node.
+    """
+    return sequence([
+        run(
+            command=b"kubeadm init --token {}".format(token)
+        ),
+        # Allow pods to be scheduled to the master node too.
+        run(command=b"kubectl taint nodes --all dedicated-"),
+        # Install a network addon. The weave daemonset will be started on the
+        # nodes as they join the cluster in ``task_configure_kubernetes_node``.
+        run(
+            command=b"kubectl apply --filename " + KUBERNETES_ADDON_WEAVE
+        ),
+    ])
+
+
+def task_configure_kubernetes_node(distribution, token, master_ip):
+    """
+    Configure a Kubernetes worker node and join it to the master configured in
+    ``task_configure_kubernetes_master``.
+
+    XXX Skip preflight checks until
+    https://github.com/kubernetes/kubernetes/issues/36301 is resolved.
+
+    :param unicode distribution: The name of the target OS distribution.
+    :param bytes token: A ``kubeadm`` token.
+    :returns: an ``Effect`` for running ``kubeadm --join``.
+    """
+    return sequence([
+        run(
+            command=(
+                b"kubeadm join --skip-preflight-checks --token "
+                + token + b" "
+                + master_ip
+            )
+        ),
+    ])
+
 
 def task_install_flocker(
     distribution=None,
@@ -1488,13 +1746,15 @@ def provision(distribution, package_source, variants):
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
     commands.append(task_install_docker(distribution))
+    commands.append(task_install_kubernetes(distribution))
     commands.append(
         task_install_flocker(
             package_source=package_source, distribution=distribution))
     commands.append(
         task_install_docker_plugin(
             package_source=package_source, distribution=distribution))
-    commands.append(task_enable_docker(distribution))
+    commands.append(task_start_docker(distribution))
+    commands.append(task_start_kubelet(distribution))
     return sequence(commands)
 
 
@@ -1543,6 +1803,49 @@ def install_flocker(nodes, package_source):
             ),
         ]),
     )
+
+
+def deconfigure_kubernetes(nodes):
+    """
+    See: http://kubernetes.io/docs/getting-started-guides/kubeadm/#cleanup
+
+    :param nodes: An iterable of ``Node`` instances on which to de-configure
+        Kubernetes.
+
+    :return: An ``Effect`` which removes all Kubernetes pods / containers and
+        configuration.
+    """
+    return sequence([
+        _run_on_all_nodes(
+            nodes,
+            task=lambda node: sequence([
+                run(command=b"systemctl stop kubelet"),
+                run(
+                    command=(
+                        b"docker ps --all --quiet | "
+                        b"xargs --no-run-if-empty docker rm --force"
+                    )
+                ),
+                run(
+                    command=(
+                        b"find /var/lib/kubelet "
+                        b"| xargs --no-run-if-empty "
+                        b"        --max-args 1 "
+                        b"  findmnt --noheadings --types tmpfs "
+                        b"          --output TARGET --target "
+                        b"| uniq | xargs --no-run-if-empty umount"
+                    )
+                ),
+                run(
+                    command=(
+                        b"rm -rf "
+                        b"/etc/kubernetes /var/lib/kubelet /var/lib/etcd"
+                    )
+                ),
+                run(command=b"systemctl start kubelet"),
+            ]),
+        ),
+    ])
 
 
 def configure_cluster(
@@ -1724,6 +2027,10 @@ def configure_control_node(
                     cluster.control_node.distribution
                 )
             ),
+            task_configure_kubernetes_master(
+                distribution=cluster.control_node.distribution,
+                token=kubeadm_token_from_cluster(cluster),
+            ),
         ]),
     )
 
@@ -1751,36 +2058,53 @@ def configure_node(
     if provider == "managed":
         setup_action = 'restart'
 
+    if node is cluster.control_node:
+        commands = []
+    else:
+        commands = [
+            task_configure_kubernetes_node(
+                distribution=node.distribution,
+                token=kubeadm_token_from_cluster(cluster),
+                master_ip=cluster.control_node.address,
+            ),
+        ]
+
+    commands.extend([
+        task_install_node_certificates(
+            cluster.certificates.cluster.certificate,
+            certnkey.certificate,
+            certnkey.key),
+        task_install_api_certificates(
+            cluster.certificates.user.certificate,
+            cluster.certificates.user.key),
+        task_configure_docker(node.distribution),
+        if_firewall_available(
+            node.distribution,
+            open_firewall_for_docker_api(node.distribution),
+        ),
+        task_configure_flocker_agent(
+            control_node=cluster.control_node.address,
+            dataset_backend=cluster.dataset_backend,
+            dataset_backend_configuration=(
+                dataset_backend_configuration
+            ),
+            logging_config=logging_config,
+        ),
+        task_enable_docker_plugin(node.distribution),
+        task_enable_flocker_agent(
+            distribution=node.distribution,
+            action=setup_action,
+        ),
+        # Restart docker after pushing the Flocker certificates and the Docker
+        # configuration modifications which make it use Flocker certificates
+        # for listening on a TLS / TCP port.
+        task_start_docker(node.distribution)
+    ])
+
     return run_remotely(
         username='root',
         address=node.address,
-        commands=sequence([
-            task_install_node_certificates(
-                cluster.certificates.cluster.certificate,
-                certnkey.certificate,
-                certnkey.key),
-            task_install_api_certificates(
-                cluster.certificates.user.certificate,
-                cluster.certificates.user.key),
-            task_enable_docker(node.distribution),
-            if_firewall_available(
-                node.distribution,
-                open_firewall_for_docker_api(node.distribution),
-            ),
-            task_configure_flocker_agent(
-                control_node=cluster.control_node.address,
-                dataset_backend=cluster.dataset_backend,
-                dataset_backend_configuration=(
-                    dataset_backend_configuration
-                ),
-                logging_config=logging_config,
-            ),
-            task_enable_docker_plugin(node.distribution),
-            task_enable_flocker_agent(
-                distribution=node.distribution,
-                action=setup_action,
-            ),
-        ]),
+        commands=sequence(commands),
     )
 
 
