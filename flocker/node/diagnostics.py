@@ -314,7 +314,7 @@ DISTRIBUTIONS = (
         log_exporter=JournaldLogExporter,
     ),
     Distribution(
-        name=u'rhel',
+        name=u'redhat',
         version=u'7',
         service_manager=SystemdServiceManager,
         log_exporter=JournaldLogExporter,
