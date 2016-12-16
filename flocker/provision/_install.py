@@ -699,18 +699,37 @@ def cli_pip_test(venv_name='flocker-client', package_source=PackageSource()):
         ])
 
 
+def task_enable_root_logins(distribution):
+    """
+    Configure the SSH server to allow root login.
+    """
+    commands = [
+        # Allow root SSH login by inserting PermitRootLogin as the first line.
+        sudo_from_args([
+            'sed', '-i', '1 i PermitRootLogin yes', '/etc/ssh/sshd_config'
+        ]),
+    ]
+    if is_systemd_distribution(distribution):
+        commands.append(
+            sudo_from_args([
+                'systemctl', 'restart', 'sshd'
+            ])
+        )
+    else:
+        # Ubuntu 14.04 calls the service ssh rather than sshd.
+        commands.append(
+            sudo_from_args([
+                'service', 'ssh', 'restart'
+            ])
+        )
+    return sequence(commands)
+
+
 def task_install_ssh_key():
     """
     Install the authorized ssh keys of the current user for root as well.
     """
     return sequence([
-        # Allow root SSH login by inserting PermitRootLogin as the first line.
-        sudo_from_args([
-            'sed', '-i', '1 i PermitRootLogin yes', '/etc/ssh/sshd_config'
-        ]),
-        sudo_from_args([
-            'service', 'sshd', 'restart'
-        ]),
         sudo_from_args(['cp', '.ssh/authorized_keys',
                         '/root/.ssh/authorized_keys']),
     ])
@@ -1847,7 +1866,12 @@ def provision_for_any_user(node, package_source, variants=()):
         address=node.address,
         commands=retry(task_install_ssh_key(), for_thirty_seconds),
     ))
-
+    # Some distributions configure SSH to prevent logging in as the root user.
+    commands.append(run_remotely(
+        username=username,
+        address=node.address,
+        commands=task_enable_root_logins(node.distribution),
+    ))
     commands.append(
         provision_as_root(node, package_source, variants))
 
