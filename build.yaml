@@ -506,7 +506,7 @@ common_cli:
     # we provide one by starting a webserver and pointing the tests
     # to look over there
     cd ${REPO_PATH}
-    local distribution="${DISTRIBUTION_NAME_PACKAGE:-DISTRIBUTION_NAME}"
+    distribution="${DISTRIBUTION_NAME_PACKAGE:-DISTRIBUTION_NAME}"
     # create a repo on either centos or ubuntu
     case "${distribution}" in
         ubuntu*)
