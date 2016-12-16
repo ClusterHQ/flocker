@@ -539,8 +539,6 @@ def _get_base_url_and_installer_for_distro(distribution, build_server, branch):
     """
     package = distribution
     if is_centos_or_rhel(distribution):
-        # Use CentOS 7 packages on RHEL.
-        package = 'centos-7'
         installer = install_commands_yum
     elif is_ubuntu(distribution):
         installer = install_commands_ubuntu
