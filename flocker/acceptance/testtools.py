@@ -874,7 +874,15 @@ class Cluster(PClass):
                 # they're left over from previous test; they might e.g.
                 # have a volume bind-mounted, preventing its destruction.
                 for container in client.containers():
-                    client.remove_container(container["Id"], force=True)
+                    # Don't attempt to remove containers related to
+                    # orchestration frameworks
+                    protected_container = False
+                    label_keys = container["Labels"].keys()
+                    for key in label_keys:
+                        if key.startswith("io.kubernetes."):
+                            protected_container = True
+                    if not protected_container:
+                        client.remove_container(container["Id"], force=True)
 
         def cleanup_flocker_containers(_):
             cleaning_containers = api_clean_state(

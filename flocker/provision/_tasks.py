@@ -6,7 +6,8 @@ All the tasks available from the ``task`` directive.
 
 from ._install import (
     task_create_flocker_pool_file,
-    task_enable_docker,
+    task_configure_docker,
+    task_start_docker,
     task_install_flocker,
     task_install_ssh_key,
     task_cli_pkg_install,
@@ -22,7 +23,8 @@ from ._install import (
 
 __all__ = [
     'task_create_flocker_pool_file',
-    'task_enable_docker',
+    'task_configure_docker',
+    'task_start_docker',
     'task_install_flocker',
     'task_install_ssh_key',
     'task_cli_pkg_install',

@@ -138,3 +138,38 @@ def treq_with_authentication(reactor, ca_path, user_cert_path, user_key_path):
     policy = ControlServicePolicy(
         ca_certificate=ca, client_credential=user_credential.credential)
     return HTTPClient(Agent(reactor, contextFactory=policy))
+
+
+@implementer(IPolicyForHTTPS)
+class KubernetesPolicy(PClass):
+    """
+    HTTPS TLS policy for validating the Kubernetes master identity.
+
+    :ivar FlockerCredential client_credential: Client's certificate and
+        private key pair.
+    """
+    ca_certificate = field(mandatory=True)
+    expected_common_name = field(mandatory=True, type=unicode)
+
+    def creatorForNetloc(self, hostname, port):
+        return optionsForClientTLS(
+            self.expected_common_name,
+            trustRoot=self.ca_certificate,
+        )
+
+
+def treq_with_ca(reactor, ca_path, expected_common_name):
+    """
+    Create a ``treq``-API object that trusts a custom certificate authority.
+
+    :param reactor: The reactor to use.
+    :param FilePath ca_path: Absolute path to the public cluster certificate.
+
+    :return: ``treq`` compatible object.
+    """
+    ca = Certificate.loadPEM(ca_path.getContent())
+    policy = KubernetesPolicy(
+        ca_certificate=ca,
+        expected_common_name=expected_common_name,
+    )
+    return HTTPClient(Agent(reactor, contextFactory=policy))
