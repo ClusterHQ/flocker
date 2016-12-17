@@ -884,7 +884,7 @@ class Cluster(PClass):
                 lambda item: self.remove_container(item[u"name"]),
             )
             return timeout(
-                reactor, cleaning_containers, 30,
+                reactor, cleaning_containers, 60,
                 Exception("Timed out cleaning up Flocker containers"),
             )
 

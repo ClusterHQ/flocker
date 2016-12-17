@@ -64,6 +64,7 @@ IPv4
 Isolator
 journald
 js
+Kaminario
 keychain
 keypair
 Kubernetes
