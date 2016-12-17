@@ -719,6 +719,10 @@ IGNORED_WARNINGS = {
         # Only occurs when building locally
         "non-standard-dir-perm",
         "non-standard-file-perm",
+
+        # Sphinx 1.5.1 contains various untracked files.
+        # https://github.com/sphinx-doc/sphinx/issues/3256
+        "macos-ds-store-file-in-package opt/flocker/lib/python2.7/site-packages/sphinx/locale/.DS_Store",  # noqa
     ),
 }
 
