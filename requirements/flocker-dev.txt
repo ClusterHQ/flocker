@@ -1,4 +1,4 @@
-mimic==2.1.0
+mimic==2.2.0
 # Required by flocker.acceptance.integration.test_postgres
 pg8000==1.10.6
 pycrypto==2.6.1
@@ -18,7 +18,7 @@ attrs==16.3.0
 Babel==2.3.4
 cffi==1.9.1
 constantly==15.1.0
-cryptography==1.6
+cryptography==1.7.1
 docutils==0.13.1
 enum34==1.1.6
 extras==1.0.0
@@ -29,7 +29,7 @@ incremental==16.10.1
 ipaddress==1.0.17
 iso8601==0.1.11
 Jinja2==2.8
-klein==15.3.1
+klein==16.12.0
 linecache2==1.0.0
 MarkupSafe==0.23
 pbr==1.10.0
@@ -44,12 +44,12 @@ requests==2.10.0
 service-identity==16.0.0
 six==1.10.0
 snowballstemmer==1.2.1
-Sphinx==1.5
+Sphinx==1.5.1
 testtools==2.2.0
 traceback2==1.4.0
-treq==15.1.0
+treq==16.12.0
 Twisted==16.6.0
 unittest2==1.1.0
 Werkzeug==0.11.11
 xmltodict==0.10.2
-zope.interface==4.3.2
+zope.interface==4.3.3
