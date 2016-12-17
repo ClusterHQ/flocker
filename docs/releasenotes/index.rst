@@ -12,8 +12,10 @@ You can learn more about where we might be going with future releases by:
 Next Release
 ============
 
+* Ubuntu 15.10 packages are no longer generated.
 * References to the Flocker container API and the ``flocker-container-agent`` have been removed from the documentation.
 * Fixed bug in OpenStack Cinder backend where nodes with floating IPs could not be recognized.
+* The dataset agent now has backend support for :ref:`Kaminario's K2 all-flash storage array <kaminario-backend>`.
 
 Previous Releases
 =================

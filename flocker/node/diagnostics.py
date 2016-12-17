@@ -312,7 +312,13 @@ DISTRIBUTIONS = (
         version=u'16.04',
         service_manager=SystemdServiceManager,
         log_exporter=JournaldLogExporter,
-    )
+    ),
+    Distribution(
+        name=u'redhat',
+        version=u'7',
+        service_manager=SystemdServiceManager,
+        log_exporter=JournaldLogExporter,
+    ),
 )
 
 

@@ -110,7 +110,6 @@ class Distribution(object):
 DISTRIBUTION_NAME_MAP = {
     'centos-7': Distribution(name="centos", version="7"),
     'ubuntu-14.04': Distribution(name="ubuntu", version="14.04"),
-    'ubuntu-15.10': Distribution(name="ubuntu", version="15.10"),
     'ubuntu-16.04': Distribution(name="ubuntu", version="16.04"),
 }
 
@@ -606,6 +605,11 @@ IGNORED_WARNINGS = {
         # E.g.
         # /opt/flocker/lib/python2.7/site-packages/sphinx/locale/bn/LC_MESSAGES/sphinx.mo
         'file-not-in-%lang',
+
+        # Twisted 16.6 includes an executable C source file.
+        # https://twistedmatrix.com/trac/ticket/8921
+        'spurious-executable-perm /opt/flocker/lib/python2.7/site-packages/twisted/internet/iocpreactor/iocpsupport/iocpsupport.c', # noqa
+
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
@@ -713,6 +717,10 @@ IGNORED_WARNINGS = {
         # Only occurs when building locally
         "non-standard-dir-perm",
         "non-standard-file-perm",
+
+        # Sphinx 1.5.1 contains various untracked files.
+        # https://github.com/sphinx-doc/sphinx/issues/3256
+        "macos-ds-store-file-in-package opt/flocker/lib/python2.7/site-packages/sphinx/locale/.DS_Store",  # noqa
     ),
 }
 

@@ -42,6 +42,7 @@ Community supported drivers
 * :ref:`vmware-backend`
 * :ref:`coprhd-backend`
 * :ref:`pure-storage-backend`
+* :ref:`kaminario-backend`
 
 .. toctree::
    :hidden:
@@ -58,6 +59,7 @@ Community supported drivers
    vmware-configuration
    coprhd-configuration
    pure-storage-configuration
+   kaminario-configuration
 
 Flocker supports pluggable storage backends.
 Any storage system that is able to present itself as a network-based block device can serve as the underlying storage for a Docker data volume managed by Flocker.

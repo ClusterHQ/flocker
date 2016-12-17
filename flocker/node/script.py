@@ -595,7 +595,7 @@ class DiagnosticsOptions(Options):
             raise UsageError(
                 "flocker-diagnostics "
                 "is not supported on this distribution ({!r}).\n"
-                "See https://docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
+                "See https://flocker-docs.clusterhq.com/en/latest/using/administering/debugging.html \n"  # noqa
                 "for alternative ways to export Flocker logs "
                 "and diagnostic data.\n".format(distribution_name)
             )

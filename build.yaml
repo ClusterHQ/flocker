@@ -252,12 +252,13 @@ common_cli:
     virtualenv -p python2.7 --clear ${venv}
     . ${venv}/bin/activate
     # Upgrade Python packaging tools.
-    ${venv}/bin/pip install pip==8.1.2 setuptools==23.0.0
+    ${venv}/bin/pip install pip==8.1.2 setuptools==23.0.0 tox==2.3.1
     # Report the versions to aid debugging.
     ${venv}/bin/python --version
     ${venv}/bin/pip --version
     ${venv}/bin/python \
         -c 'import setuptools; print "SETUPTOOLS_VERSION:", setuptools.__version__'
+    ${venv}/bin/tox --version
 
   setup_flocker_modules: &setup_flocker_modules |
     # installs all the required python modules as well as the flocker code.
@@ -327,22 +328,6 @@ common_cli:
     cat trial.log | subunit-1to2 | subunit2junitxml \
       --no-passthrough --output-to=results.xml
 
-  run_sphinx: &run_sphinx |
-    ${venv}/bin/python setup.py --version
-    cd docs
-    # check spelling
-    ${venv}/bin/sphinx-build -d _build/doctree -b spelling . _build/spelling
-    # build html pages
-    ${venv}/bin/sphinx-build -d _build/doctree -b html . _build/html
-
-  # Link checking relies on external services, and is
-  # fairly flaky. Split it out and run it nighty
-  run_sphinx_link_check: &run_sphinx_link_check |
-    ${venv}/bin/python setup.py --version
-    cd docs
-    # check links
-    ${venv}/bin/sphinx-build -d _build/doctree -b linkcheck . _build/linkcheck
-
   # flocker artifacts contains the list of files we want to collect from our
   # _main_multijob. These are used to produce the coverage, test reports.
   flocker_artifacts: &flocker_artifacts
@@ -372,7 +357,7 @@ common_cli:
     - ${WORKSPACE}/.hypothesis
 
   run_acceptance_directories_to_delete: &run_acceptance_directories_to_delete
-    - ${WORKSPACE}/repo
+    - ${WORKSPACE}/dist
 
   run_trial_with_coverage: &run_trial_with_coverage |
     # The jobs.groovy.j2 file produces jobs that contain a parameterized job
@@ -434,13 +419,19 @@ common_cli:
     # We pass the URL of our Jenkins Slave to the acceptance test nodes
     # through the --build-server parameter below.
     #
+    EXTERNAL_IP=$(\
+        curl \
+            --silent \
+            --header "Metadata-Flavor: Google" \
+            http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+    )
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --provider ${ACCEPTANCE_TEST_PROVIDER} \
     --dataset-backend ${ACCEPTANCE_TEST_PROVIDER} \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(curl -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip) \
+    --build-server ${BUILD_SERVER} \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -453,12 +444,18 @@ common_cli:
     # The admin/run-acceptance-tests will provision a flocker cluster with a
     # single node since the loopback backend doesn't support moving data across
     # hosts.
+    EXTERNAL_IP=$(\
+        curl \
+            --silent \
+            --header "Metadata-Flavor: Google" \
+            http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+    )
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-acceptance-tests \
     --distribution ${DISTRIBUTION_NAME} --number-of-nodes 1 \
     --provider ${ACCEPTANCE_TEST_PROVIDER} --dataset-backend loopback \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)  \
+    --build-server $BUILD_SERVER \
     --config-file /tmp/acceptance.yaml \
     -- --reporter=subunit ${ACCEPTANCE_TEST_MODULE} 2>&1 | tee trial.log
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
@@ -467,11 +464,17 @@ common_cli:
     # We gather the return code but make sure we come out of these tests with 0
     # we store that code and pass it to the end of the job execution,
     # as part of the JOB_EXIT_STATUS variable.
+    EXTERNAL_IP=$(\
+        curl \
+            --silent \
+            --header "Metadata-Flavor: Google" \
+            http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+    )
+    BUILD_SERVER="http://${EXTERNAL_IP}/${BUILD_TAG}/"
     ${venv}/bin/python admin/run-client-tests \
     --distribution ${DISTRIBUTION_NAME} \
     --branch ${TRIGGERED_BRANCH} \
-    --build-server  \
-    http://$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)
+    --build-server $BUILD_SERVER
     JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   disable_selinux: &disable_selinux |
@@ -485,24 +488,27 @@ common_cli:
     ${venv}/bin/python setup.py sdist
 
   build_package: &build_package  |
-    # and build a rpm/deb package using docker
+    # Build an RPM / DEB package using docker.
+    # The packages are served by a local nginx server.
+    REPO_BASE=/var/www/html/${BUILD_TAG}
+    REPO_PATH=${REPO_BASE}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
+    # Export for subsequent functions that perform operations on the REPO_BASE
+    # and REPO_PATH.
+    export REPO_BASE REPO_PATH
+    sudo mkdir -p ${REPO_PATH}
     ${venv}/bin/python admin/build-package \
-    --destination-path repo \
-    --distribution ${DISTRIBUTION_NAME} \
+    --destination-path ${REPO_PATH} \
+    --distribution ${DISTRIBUTION_NAME_PACKAGE:-$DISTRIBUTION_NAME} \
     /flocker/dist/Flocker-${FLOCKER_VERSION}.tar.gz
 
   build_repo_metadata: &build_repo_metadata |
     # the acceptance tests look for a package in a yum repository,
     # we provide one by starting a webserver and pointing the tests
     # to look over there
-    REPO_PATH=/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}
-    DOC_ROOT=/var/www/html
-    sudo rm -rf ${DOC_ROOT}/${REPO_PATH}
-    sudo mkdir -p ${DOC_ROOT}/${REPO_PATH}
-    sudo cp repo/* ${DOC_ROOT}/${REPO_PATH}
-    cd ${DOC_ROOT}/${REPO_PATH}
+    cd ${REPO_PATH}
+    distribution="${DISTRIBUTION_NAME_PACKAGE:-$DISTRIBUTION_NAME}"
     # create a repo on either centos or ubuntu
-    case "${DISTRIBUTION_NAME}" in
+    case "${distribution}" in
         ubuntu*)
             sudo sh -c 'dpkg-scanpackages --multiversion . | gzip > Packages.gz'
             ;;
@@ -510,16 +516,15 @@ common_cli:
             sudo createrepo .
             ;;
         *)
-            echo "ERROR: Unsupported distribution '${DISTRIBUTION_NAME}'." >&2
+            echo "ERROR: Unsupported distribution '${distribution}'." >&2
             exit 1
             ;;
     esac
     cd -
 
   clean_packages: &clean_packages |
-    # jenkins is unable to clean the git repository as some files are owned
-    # by root, so we make sure we delete the repo files we created
-    sudo rm -rf repo/
+    # Delete the repo files we created
+    sudo rm -rf $REPO_BASE
 
   exit_with_return_code_from_test: &exit_with_return_code_from_test |
     # this is where we make sure we exit with the correct return code
@@ -544,6 +549,52 @@ common_cli:
     # are actually executed.
     # See: https://github.com/docker/docker/issues/3313
     docker build --no-cache -t $DOCKER_IMAGE .
+
+  build_docker_image_flocker: &build_docker_image_flocker |
+    # Build Flocker Docker image
+    BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    docker build \
+        --rm \
+        --tag "${DOCKER_IMAGE}" \
+        --label "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+        --label "GIT_COMMIT=${GIT_COMMIT}" \
+        --label "TRIGGERED_BRANCH=${TRIGGERED_BRANCH}" \
+        --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
+        --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
+        dockerfiles/dataset
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
+
+  build_docker_image_flocker_control: &build_docker_image_flocker_control |
+    # Build Flocker-control Docker image
+    BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    docker build \
+        --rm \
+        --tag "${DOCKER_IMAGE}" \
+        --label "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+        --label "GIT_COMMIT=${GIT_COMMIT}" \
+        --label "TRIGGERED_BRANCH=${TRIGGERED_BRANCH}" \
+        --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
+        --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
+        dockerfiles/control
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
+
+  build_docker_image_flocker_docker_plugin: &build_docker_image_flocker_docker_plugin |
+    # Build Flocker-docker-plugin Docker image
+    BUILD_SERVER_IP="$(wget -qO- http://instance-data/latest/meta-data/public-ipv4)"
+    REPOSITORY_PATH="${BUILD_TAG}/results/omnibus/${TRIGGERED_BRANCH}/${DISTRIBUTION_NAME}"
+    docker build \
+        --rm \
+        --tag "${DOCKER_IMAGE}" \
+        --label "FLOCKER_VERSION=${FLOCKER_VERSION}" \
+        --label "GIT_COMMIT=${GIT_COMMIT}" \
+        --label "TRIGGERED_BRANCH=${TRIGGERED_BRANCH}" \
+        --label "BUILD_SERVER_IP=${BUILD_SERVER_IP}" \
+        --build-arg "FLOCKER_REPOSITORY=http://${BUILD_SERVER_IP}/${REPOSITORY_PATH}" \
+        dockerfiles/docker-plugin
+    JOB_EXIT_STATUS="$( updateExitStatus $? )"
 
   # These are the docker images we will be using during our tests.
   # We build them every 24 hours, making sure we have the latest OS updates
@@ -576,18 +627,6 @@ common_cli:
     echo "RUN apt-get update" >> Dockerfile
     echo "RUN apt-get install --no-install-recommends -y git ruby-dev \
           libffi-dev libssl-dev libenchant-dev build-essential \
-          python2.7-dev lintian python" >> Dockerfile
-    echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
-    echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
-
-  build_dockerfile_ubuntu_wily: &build_dockerfile_ubuntu_wily |
-    # don't waste time installing ruby or fpm, use an image containing fpm
-    # https://github.com/alanfranz/fpm-within-docker
-    echo "FROM alanfranz/fwd-ubuntu-wily:latest" > Dockerfile
-    echo "MAINTAINER ClusterHQ <contact@clusterhq.com>" >> Dockerfile
-    echo "RUN apt-get update" >> Dockerfile
-    echo "RUN apt-get install --no-install-recommends -y \
-          git ruby-dev libffi-dev libssl-dev libenchant-dev build-essential \
           python2.7-dev lintian python" >> Dockerfile
     echo "ADD https://bootstrap.pypa.io/get-pip.py /tmp/" >> Dockerfile
     echo 'RUN ["python", "/tmp/get-pip.py", "pip==8.1.2", "setuptools==23.0.0"]' >> Dockerfile
@@ -671,47 +710,6 @@ common_cli:
       vagrant ssh -c "rm -f ${item}"
     done
 
-  install_aws_cli: &install_aws_cli |
-    # installs the AWS python based cli
-    # we use the aws cli to upload the docs files to S3
-    pip install awscli
-
-  get_s3_creds_for_bucket_staging_docs: &get_s3_creds_for_bucket_staging_docs |
-    # collects the S3 credentials that allows us to upload files to the S3
-    # staging bucket for our docs.
-    # the file with the credentials are deployed by the jenkins master to the
-    # /tmp of the slave when the slave is instantiated.
-    . /tmp/s3_staging_docs_clusterhq_com.sh
-
-  get_s3_creds_for_bucket_vagrant_jenkins_boxes: &get_s3_creds_for_bucket_vagrant_jenkins_boxes |
-    # collects the S3 credentials that allows us to upload files to the S3
-    # vagrant-jenkins_boxes for our vagrant boxes
-    # the file with the credentials is deployed by the jenkins master to the
-    # /tmp of the slave when the slave is instantiated.
-    . /tmp/s3_vagrant_jenkins_boxes_clusterhq.com
-
-  upload_new_docs_html_to_s3_staging_docs: &upload_new_docs_html_to_s3_staging_docs |
-    # uploads the new generated html to a folder on the S3 staging-docs bucket
-    cd _build/html
-    aws --region ${S3_DOCS_REGION} s3 sync --delete . s3://clusterhq-staging-docs/$TRIGGERED_BRANCH
-    echo "This branch is available at :"
-    echo "http://clusterhq-staging-docs.s3-website-us-east-1.amazonaws.com/$TRIGGERED_BRANCH/"
-
-  sync_master_docs_to_doc_dev: &sync_master_docs_to_doc_dev |
-    # ensure master docs at doc-dev are up-to-date
-    [ "$TRIGGERED_BRANCH" != master ] || aws --region ${S3_DOCS_REGION} s3 sync --delete --acl public-read \
-      s3://clusterhq-staging-docs/master s3://doc-dev.clusterhq.com
-
-  run_lint: &run_lint |
-    # Disable exiting on error, so we can run multiple lints
-    set +e
-    # run flake8 lint tests on Flocker source code
-    flake8 --format=pylint --output flake8.lint.txt admin benchmark flocker
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    pylint admin benchmark flocker > pylint.lint.txt
-    JOB_EXIT_STATUS="$( updateExitStatus $? )"
-    set -e
-
 #-----------------------------------------------------------------------------#
 # Job Definitions below this point
 #-----------------------------------------------------------------------------#
@@ -719,7 +717,6 @@ common_cli:
 #
 # * run_trial
 # * run_trial_for_storage_driver (ebs/cinder)
-# * run_sphinx (old docs job)
 # * run_acceptance (tests)
 # * cronly_jobs (builds docker images every 24 hours)
 #
@@ -734,21 +731,7 @@ common_cli:
 run_trial_modules: &run_trial_modules
   - admin
   - benchmark
-  - flocker.acceptance.test
-  - flocker.apiclient
-  - flocker.ca.functional
-  - flocker.ca.test
-  - flocker.cli
-  - flocker.common
-  - flocker.control
-  - flocker.docs
-  - flocker.dockerplugin
-  - flocker.node.test
-  - flocker.node.functional.test_script
-  - flocker.provision
-  - flocker.restapi
-  - flocker.test
-  - flocker.testtools
+  - flocker
 run_trial_as_root_modules: &run_trial_as_root_modules
   # journald access requires root
   - flocker.common.functional
@@ -819,19 +802,8 @@ job_type:
       timeout: 30
       directories_to_delete: *run_trial_directories_to_delete
 
-    # http://build.clusterhq.com/builders/flocker-admin
-    # http://build.clusterhq.com/builders/flocker-ubuntu-14.04
-    run_trial_on_AWS_Ubuntu_Trusty:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_modules: *run_trial_modules
-      with_steps:
-        - { type: 'shell', cli: *run_trial_cli }
-      archive_artifacts: *flocker_artifacts
-      publish_test_results: true
-      coverage_report: true
-      clean_repo: true
-      timeout: 30
-      directories_to_delete: *run_trial_directories_to_delete
+    # Ubuntu 14.04 non-root tests are run on Travis-CI container infrastructure.
+    # See .travis.yml
 
     run_trial_on_AWS_Ubuntu_Trusty_as_root:
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
@@ -991,27 +963,12 @@ job_type:
       timeout: 90
       directories_to_delete: *run_trial_directories_to_delete
 
-  # http://build.clusterhq.com/builders/flocker-docs
-  run_sphinx:
-    run_sphinx:
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   *install_aws_cli, *run_sphinx,
-                   *get_s3_creds_for_bucket_staging_docs,
-                   *upload_new_docs_html_to_s3_staging_docs,
-                   *sync_master_docs_to_doc_dev ]
-          }
-      timeout: 10
-      archive_artifacts: ["docs/_build/spelling/output.txt"]
-      directories_to_delete: []
-
   # http://build.clusterhq.com/builders/flocker%2Facceptance%2Faws%2Fcentos-7%2Faws
   run_acceptance:
     run_acceptance_loopback_on_AWS_CentOS_7_for:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1035,8 +992,41 @@ job_type:
       timeout: 45
       directories_to_delete: *run_acceptance_directories_to_delete
 
+    run_acceptance_loopback_on_AWS_RHEL_7_for:
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
+      with_modules: *run_full_acceptance_modules
+      with_steps:
+        - { type: 'shell',
+            cli: [ *hashbang, *add_shell_functions,
+                   *cleanup, *setup_venv, *setup_flocker_modules,
+                   # For RHEL7 we build Centos-7 packages but put them in a repo
+                   # named RHEL7.
+                   # XXX We should have a way to build RHEL7 packages.
+                   'export DISTRIBUTION_NAME=rhel-7',
+                   'export DISTRIBUTION_NAME_PACKAGE=centos-7',
+                   *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   *setup_authentication,
+                   'export ACCEPTANCE_TEST_MODULE=${MODULE}',
+                   'export ACCEPTANCE_TEST_PROVIDER=aws',
+                   *run_acceptance_loopback_tests,
+                   *convert_results_to_junit,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
+          }
+      clean_repo: true
+      archive_artifacts: *acceptance_tests_artifacts
+      publish_test_results: true
+      timeout: 45
+      directories_to_delete: *run_acceptance_directories_to_delete
+
     run_acceptance_loopback_on_AWS_Ubuntu_Trusty_for:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1061,7 +1051,9 @@ job_type:
       directories_to_delete: *run_acceptance_directories_to_delete
 
     run_acceptance_loopback_on_AWS_Ubuntu_Xenial_for:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_modules: *run_full_acceptance_modules
       with_steps:
         - { type: 'shell',
@@ -1087,7 +1079,9 @@ job_type:
 
   run_client:
     run_client_installation_on_Ubuntu_Trusty:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1104,26 +1098,10 @@ job_type:
       timeout: 30
       directories_to_delete: *run_acceptance_directories_to_delete
 
-    run_client_installation_on_Ubuntu_Wily:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   'export DISTRIBUTION_NAME=ubuntu-15.10',
-                   *check_version,
-                   *build_sdist, *build_package,
-                   *build_repo_metadata,
-                   *run_client_tests,
-                   *clean_packages,
-                   *exit_with_return_code_from_test ]
-          }
-      clean_repo: true
-      timeout: 30
-      directories_to_delete: *run_acceptance_directories_to_delete
-
     run_client_installation_on_Ubuntu_Xenial:
-      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
+      # flocker.provision is responsible for creating the test nodes on
+      # so we can actually run run-acceptance-tests from GCE
+      on_nodes_with_labels: 'gce-ubuntu16'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
@@ -1140,19 +1118,32 @@ job_type:
       timeout: 30
       directories_to_delete: *run_acceptance_directories_to_delete
 
-  run_lint:
-    run_lint:
-      on_nodes_with_labels: 'aws-centos-7-T2Medium'
+  run_docker_build:
+    run_docker_build_on_Ubuntu_Xenial:
+      on_nodes_with_labels: 'aws-ubuntu-xenial-T2Medium'
       with_steps:
         - { type: 'shell',
             cli: [ *hashbang, *add_shell_functions,
                    *cleanup, *setup_venv, *setup_flocker_modules,
-                   *run_lint, *exit_with_return_code_from_test ]
+                   'export DISTRIBUTION_NAME=ubuntu-16.04',
+                   *check_version,
+                   *build_sdist, *build_package,
+                   *build_repo_metadata,
+                   'export DOCKER_IMAGE=clusterhqci/flocker-dataset-agent:${GIT_COMMIT}',
+                   *build_docker_image_flocker,
+                   *push_image_to_dockerhub,
+                   'export DOCKER_IMAGE=clusterhqci/flocker-control:${GIT_COMMIT}',
+                   *build_docker_image_flocker_control,
+                   *push_image_to_dockerhub,
+                   'export DOCKER_IMAGE=clusterhqci/flocker-docker-plugin:${GIT_COMMIT}',
+                   *build_docker_image_flocker_docker_plugin,
+                   *push_image_to_dockerhub,
+                   *clean_packages,
+                   *exit_with_return_code_from_test ]
           }
-      timeout: 10
-      publish_lint: true
-      archive_artifacts: ["*.lint.txt"]
-      directories_to_delete: []
+      clean_repo: true
+      timeout: 30
+      directories_to_delete: *run_acceptance_directories_to_delete
 
   cronly_jobs:
     run_docker_build_centos7_fpm:
@@ -1183,21 +1174,6 @@ job_type:
           }
       timeout: 30
       directories_to_delete: []
-
-    run_docker_build_ubuntu_wily_fpm:
-      at: '0 3 * * *'
-      on_nodes_with_labels: 'aws-centos-7-SELinux-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   'export DOCKER_IMAGE=clusterhqci/fpm-ubuntu-wily',
-                   *build_dockerfile_ubuntu_wily,
-                   *build_docker_image,
-                   *push_image_to_dockerhub ]
-          }
-      timeout: 30
-      directories_to_delete: []
-      notify_slack: '#nightly-builds'
 
     run_docker_build_ubuntu_xenial_fpm:
       at: '0 3 * * *'
@@ -1541,19 +1517,6 @@ job_type:
       directories_to_delete: []
       notify_slack: '#nightly-builds'
 
-    run_sphinx_link_check:
-      at: '0 8 * * *'
-      on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
-      with_steps:
-        - { type: 'shell',
-            cli: [ *hashbang, *add_shell_functions,
-                   *cleanup, *setup_venv, *setup_flocker_modules,
-                   *run_sphinx_link_check ]
-          }
-      timeout: 10
-      archive_artifacts: ["docs/_build/linkcheck/output.txt"]
-      notify_slack: '#nightly-builds'
-
     cleanup_cloud_resources:
       at: '0 8 * * *'
       on_nodes_with_labels: 'aws-ubuntu-trusty-T2Medium'
@@ -1626,12 +1589,6 @@ views:
   client:
     description: 'All client installation jobs'
     regex: 'run_(?i)client_.*.*'
-  code_quality:
-    description: 'All code quality jobs'
-    regex: 'run_(?i)lint.*.*'
-  docs:
-    description: 'Documentation jobs'
-    regex: 'run_(?i)sphinx.*.*'
   cinder:
     description: 'cinder jobs'
     regex: '.*_(?i)cinder_.*.*'
@@ -1653,9 +1610,6 @@ views:
   Ubuntu_Trusty_14_04_LTS:
     description: 'All Ubuntu Trusty LTS (14.04) jobs'
     regex: '.*_(?i)trusty_.*.*'
-  Ubuntu_Wily_15_10:
-    description: 'All Ubuntu Wily (15.10) jobs'
-    regex: '.*_(?i)wily_.*.*'
   Ubuntu_Xenial_16_04:
     description: 'All Ubuntu Xenial (16.04) jobs'
     regex: '.*_(?i)xenial_.*.*'

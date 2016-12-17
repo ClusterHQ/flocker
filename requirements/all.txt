@@ -1,3 +1,4 @@
+--requirement lint.txt
 --requirement flocker.txt
 --requirement flocker-dev.txt
 --requirement admin.txt

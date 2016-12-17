@@ -94,7 +94,7 @@ RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-rel
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
-To build and upload these packages, set up `gsutil` with S3 credentials on a machine with the operating system for which the package is for.
+To build and upload these packages, set up `awscli` with S3 credentials on a machine with the operating system for which the package is for.
 Go to the relevant directory in :file:`admin/release-packaging` and run:
 
 .. prompt:: bash $
@@ -103,7 +103,7 @@ Go to the relevant directory in :file:`admin/release-packaging` and run:
    # Package creation files are in directories which match their equivalent S3 keys.
    export S3KEY=$(basename "$PWD")
    rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
-   gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm s3://clusterhq-archive/${S3KEY}/clusterhq-release$(rpm -E %dist).noarch.rpm
+   aws s3 cp --acl public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm s3://clusterhq-archive/${S3KEY}/clusterhq-release$(rpm -E %dist).noarch.rpm
 
 
 Legacy
@@ -115,3 +115,90 @@ Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on Google Cloud S
 The legacy ClusterHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.
 
 Old versions of Flocker source and binary distributions are hosted on Google Cloud Storage.
+
+
+Building Docker Images
+======================
+
+The Docker images: ``flocker-dataset`` and ``flocker-control`` are built automatically by our CI system.
+They are tagged with the Git revision hash and uploaded to https://hub.docker.com/r/clusterhqci.
+
+flocker-dataset-agent
+---------------------
+
+To build the Docker image for ``flocker-dataset-agent``, run:
+
+.. prompt:: bash $
+
+   export FLOCKER_VERSION=1.15.0
+   docker build \
+       --rm \
+       --tag "clusterhqci/flocker-dataset-agent:${FLOCKER_VERSION}" \
+       --build-arg "FLOCKER_VERSION=${FLOCKER_VERSION}-1" \
+       dockerfiles/dataset
+
+You can also build the latest version of Flocker from a custom repository:
+
+.. prompt:: bash $
+
+   docker build \
+       --rm \
+       --tag "clusterhqci/flocker-dataset-agent:master" \
+       --build-arg "FLOCKER_REPOSITORY=http://build.clusterhq.com/results/omnibus/master/ubuntu-16.04/" \
+       dockerfiles/dataset
+
+To check the image, run the container with the argument ```--version```:
+
+.. prompt:: bash $
+
+   docker run --rm clusterhq/flocker-dataset-agent:master --version
+
+To run the container:
+
+.. prompt:: bash $
+
+    docker run \
+        --net host \
+        --privileged \
+        --volume /flocker:/flocker:shared \
+        --volume /etc/flocker:/etc/flocker:ro \
+        --volume /dev:/dev \
+        --detach \
+        clusterhqci/flocker-dataset-agent:master
+
+
+flocker-control
+---------------
+
+The ``flocker-control`` Docker image is built using the same ``docker build ...`` command line as for ``flocker-dataset-agent`` but substituting the ``control``.
+
+To run the ``flocker-control`` container:
+
+.. prompt:: bash $
+
+    docker run \
+        --name flocker-control \
+        --net host \
+        -p 4523:4523 \
+        -p 4524:4524 \
+        --volume /var/lib/flocker:/var/lib/flocker  \
+        --volume /etc/flocker:/etc/flocker:ro \
+        --detach \
+        clusterhqci/flocker-control:master
+
+flocker-docker-plugin
+---------------------
+
+The ``flocker-docker-plugin`` Docker image is built using the same ``docker build ...`` command line as for ``flocker-dataset-agent`` but substituting the ``docker-plugin``.
+
+To run the ``flocker-docker-plugin`` container:
+
+.. prompt:: bash $
+
+    docker run \
+        --name flocker-docker-plugin \
+        --net host \
+        --volume /etc/flocker:/etc/flocker:ro \
+        --detach \
+        clusterhqci/flocker-docker-plugin:master \
+        --rest-api-port=4523

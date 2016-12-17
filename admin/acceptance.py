@@ -895,7 +895,7 @@ class LibcloudRunner(object):
             return succeed(None)
 
 
-DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-16.04')
+DISTRIBUTIONS = ('centos-7', 'ubuntu-14.04', 'ubuntu-16.04', 'rhel-7')
 
 
 class CommonOptions(Options):
@@ -1466,7 +1466,7 @@ def main(reactor, args, base_path, top_level):
     try:
         yield runner.ensure_keys(reactor)
         cluster = yield runner.start_cluster(reactor)
-        if options['distribution'] in ('centos-7', 'rhel-7.2', 'ubuntu-16.04'):
+        if options['distribution'] in ('centos-7', 'rhel-7', 'ubuntu-16.04'):
             remote_logs_file = open("remote_logs.log", "a")
             for node in cluster.all_nodes:
                 results.append(capture_journal(reactor,

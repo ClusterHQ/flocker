@@ -6,7 +6,7 @@ set -ex
 : ${s3_bucket:?}
 
 # Get expect to autofill openssl inputs.
-sudo apt-get install -y expect
+retry_command apt-get install -y expect
 
 # Get CA from S3 bucket.
 DOCKER_CERT_HOME="/root/.docker"

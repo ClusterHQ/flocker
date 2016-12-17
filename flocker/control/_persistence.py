@@ -429,6 +429,10 @@ def generation_hash(input_object):
             generation_hash(x) for x in object_to_process
         ))
     else:
+        # XXX This code encodes *other* types to JSON bytes before hashing, but
+        # the JSON representations of FilePath and UUID are dicts with
+        # unpredictable key order leading to different hashes on python
+        # interpreters with different PYTHONHASHSEED. See FLOC-4554.
         result = mmh3_hash_bytes(wire_encode(object_to_process))
 
     if is_pyrsistent:

@@ -154,6 +154,10 @@ GCE_DISTRIBUTION_TO_IMAGE_MAP = {
         project=u"ubuntu-os-cloud",
         image_name_prefix=u"ubuntu-1604",
     ),
+    "rhel-7": _DistributionImageParams(
+        project=u"rhel-cloud",
+        image_name_prefix=u"rhel-7",
+    ),
 }
 
 

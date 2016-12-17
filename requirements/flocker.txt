@@ -1,67 +1,67 @@
 # Libcloud is not detected by snakefood
-apache-libcloud==1.2.1
+apache-libcloud==1.4.0
 bitmath==1.3.1.2
-boto==2.42.0
-boto3==1.4.0
-botocore==1.4.57
+boto==2.45.0
+boto3==1.4.2
+botocore==1.4.87
 characteristic==14.3.0
 python-cinderclient==1.9.0
-docker-py==1.10.3
-docutils==0.12
+docker-py==1.10.6
+docutils==0.13.1
 effect==0.10.1
 eliot==0.11.0
 # Included in the Flocker package to assist with debugging.
 eliot-tree==15.3.0
-google-api-python-client==1.5.3
+google-api-python-client==1.5.5
 # Not used directly by Flocker, but allows boto GCE plugins to load.
-google-compute-engine==2.2.3
-hypothesis==3.5.2
+google-compute-engine==2.3.2
+hypothesis==3.6.0
 ipaddr==2.1.11
 jsonschema==2.5.1
-keystoneauth1==2.12.1
+keystoneauth1==2.16.0
 # FLOC-4410 keystoneclient 3.0.0 moves some exceptions around.
 python-keystoneclient==2.3.1
 python-keystoneclient-rackspace==0.1.3
-klein==15.3.1
+klein==16.12.0
 machinist==0.2.0
 mmh3==2.3.1
 # Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL
 ndg-httpsclient==0.4.2
 netifaces==0.10.5
 python-novaclient==6.0.0
-# FLOC-4411 oauth2client 2 no longer exports SignedJwtAssertionCredentials
-oauth2client==1.5.2
+oauth2client==4.0.0
 # XXX This is here to ensure that buildbot installs a version of pip and
 # setuptools capable of parsing pkg_resources environment markers
 pip==8.1.2
-pyOpenSSL==16.1.0
-psutil==4.3.1
+pyOpenSSL==16.2.0
+psutil==5.0.0
 --find-links git+https://github.com/ClusterHQ/pyrsistent@v0.11.13+chq5#egg=pyrsistent-0.11.13+chq5
 pyrsistent==0.11.13+chq5
-pytz==2016.6.1
+pytz==2016.10
 repoze.lru==0.6
 requests==2.10.0
 # Add a setuptools dependency to ensure that `pip` installs the latest version
 # instead of settling for the OS packaged version.
 # See: https://github.com/pyca/cryptography/issues/2838#issuecomment-221838467
-setuptools==28.0.0
+setuptools==32.1.0
 six==1.10.0
-Sphinx==1.4.6
+Sphinx==1.5.1
 sphinxcontrib-httpdomain==1.5.0
 testtools==2.2.0
-treq==15.1.0
-Twisted==16.4.1
+treq==16.12.0
+Twisted==16.6.0
 txeffect==0.9
 PyYAML==3.12
-zope.interface==4.3.2
+zope.interface==4.3.3
 ## The following requirements were added by pip freeze:
 alabaster==0.7.9
-attrs==16.2.0
+attrs==16.3.0
 Babel==2.3.4
 backports.ssl-match-hostname==3.5.0.1
-cffi==1.8.3
-cryptography==1.5.2
-debtcollector==1.8.0
+cffi==1.9.1
+constantly==15.1.0
+cryptography==1.7.1
+debtcollector==1.10.0
 docker-pycreds==0.2.1
 enum34==1.1.6
 extras==1.0.0
@@ -72,6 +72,7 @@ futures==3.0.5
 httplib2==0.9.2
 idna==2.1
 imagesize==0.7.1
+incremental==16.10.1
 ipaddress==1.0.17
 iso8601==0.1.11
 Jinja2==2.8
@@ -81,34 +82,31 @@ MarkupSafe==0.23
 monotonic==1.2
 msgpack-python==0.4.8
 netaddr==0.7.18
-oslo.config==3.17.0
-oslo.i18n==3.9.0
-oslo.serialization==2.13.0
-oslo.utils==3.16.0
+oslo.config==3.21.0
+oslo.i18n==3.11.0
+oslo.serialization==2.15.0
+oslo.utils==3.20.0
 pbr==1.10.0
 positional==1.1.1
 prettytable==0.7.2
 pyasn1==0.1.9
 pyasn1-modules==0.0.8
-pycparser==2.14
+pycparser==2.17
 Pygments==2.1.3
-pyparsing==2.1.9
-python-dateutil==2.5.3
-python-mimeparse==1.5.3
+pyparsing==2.1.10
+python-dateutil==2.6.0
+python-mimeparse==1.6.0
 rfc3986==0.4.1
 rsa==3.4.2
-s3transfer==0.1.4
+s3transfer==0.1.10
 service-identity==16.0.0
-simplejson==3.8.2
+simplejson==3.10.0
 snowballstemmer==1.2.1
-spark-parser==1.4.0
-stevedore==1.17.1
-toolz==0.8.0
+stevedore==1.19.1
+toolz==0.8.2
 traceback2==1.4.0
-uncompyle6==2.8.3
 unittest2==1.1.0
-uritemplate==0.6
-websocket-client==0.37.0
+uritemplate==3.0.0
+websocket-client==0.40.0
 Werkzeug==0.11.11
 wrapt==1.10.8
-xdis==2.3.1

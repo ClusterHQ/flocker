@@ -146,7 +146,7 @@ The specified keys must be a set of :py:obj:`unicode` objects.
 The ``cluster_id`` parameter is a Python :py:obj:`uuid.UUID` instance uniquely identifying the cluster.
 This is useful if you want to build a system that supports multiple Flocker clusters talking to a shared storage backend.
 
-Make sure that your factory function raises an exception if it is given incorrect or insufficient parameters, so that users can easily see when they have mis-configured your backend.
+Make sure that your factory function raises an exception if it is given incorrect or insufficient parameters, so that users can easily see when they have misconfigured your backend.
 
 .. XXX FLOC-3461 might suggest using ``UsageError`` exceptions, or some other more specific suggestion.
 

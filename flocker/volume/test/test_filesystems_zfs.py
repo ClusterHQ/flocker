@@ -19,7 +19,7 @@ from eliot.testing import (
 
 from ...testtools import (
     FakeProcessReactor, assert_equal_comparison, assert_not_equal_comparison,
-    TestCase,
+    TestCase, if_root
 )
 
 from ..filesystems.zfs import (
@@ -191,6 +191,9 @@ class SyncCommandTests(TestCase):
     """
     Tests for ``_sync_command_error_squashed``.
     """
+    # On Centos-7, and if run as a non-root the error message is "permission
+    # denied" rather than "no such file"
+    @if_root
     @validateLogging(no_such_executable_logged)
     def test_no_such_executable(self, logger):
         """
