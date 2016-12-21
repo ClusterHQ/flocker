@@ -397,13 +397,9 @@ common_cli:
   setup_authentication: &setup_authentication |
     # acceptance tests rely on this file existing
     touch ${HOME}/.ssh/known_hosts
-    # remove existing keys
-    rm -f ${HOME}/.ssh/id_rsa*
-    cp /tmp/id_rsa ${HOME}/.ssh/id_rsa
-    chmod -R 0700 ${HOME}/.ssh
-    ssh-keygen -N '' -f ${HOME}/.ssh/id_rsa_flocker
+    chmod 0600 /tmp/id_rsa
     eval `ssh-agent -s`
-    ssh-add ${HOME}/.ssh/id_rsa
+    ssh-add /tmp/id_rsa
 
   run_acceptance_tests: &run_acceptance_tests |
     # We gather the return code but make sure we come out of these tests with 0
