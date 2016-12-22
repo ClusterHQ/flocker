@@ -46,11 +46,15 @@ def get_image(driver, image_name):
 
     :param driver: The libcloud driver to query for images.
     """
-    image_names = list(s.name for s in driver.list_images())
+    images = driver.list_images()
     try:
-        return list(n for n in image_names if n == image_name)[0]
+        return list(i for i in images if i.name == image_name)[0]
     except IndexError:
-        raise ValueError("Unknown image.", image_name, image_names)
+        raise ValueError(
+            "Unknown image.",
+            image_name,
+            list(i.name for i in images),
+        )
 
 
 @implementer(INode)
