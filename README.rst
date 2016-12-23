@@ -12,6 +12,7 @@ When you use Flocker to manage your stateful microservice, your volumes will fol
 
 You can also use Flocker to manage only your volumes, while continuing to manage your containers however you choose.
 
+
 About Us
 --------
 
@@ -28,6 +29,7 @@ Documentation
 -------------
 
 You can read more about installing Flocker, follow a tutorial and learn about the features of Flocker and its architecture in the `Flocker docs`_.
+
 
 Feature Requests
 ----------------
@@ -49,7 +51,7 @@ Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://twistedmatrix.com/trac/
-.. _Flocker docs: https://flocker.readthedocs.io
+.. _Flocker docs: https://flocker.readthedocs.io/
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
