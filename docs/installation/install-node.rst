@@ -169,6 +169,29 @@ Installing on Ubuntu 16.04
 
    .. XXX FLOC-3454 to create a task directive for installing the plugin
 
+#. **Install** ``consul`` **(or a supported distributed key / value database):**
+
+   Launch ``consul`` on each of the nodes by running the official `Hashicorp Consul Docker image <https://www.hashicorp.com/blog/official-consul-docker-image.html>`_.
+
+   * Supply the local IP address which ``consul`` will use when connecting to other servers in the cluster.
+
+   * On the first ``consul`` server, add the ``-bootstrap`` argument.
+     This will be the server to which you join all the subsequent servers in the cluster.
+
+   .. task:: consul_start True 192.0.2.101
+      :prompt: [root@ubuntu]#
+
+   * On all subsequent nodes run the ``consul`` server, without the ``-bootstrap`` argument.
+     And join the server to the first  by running ``consul join`` as follows:
+
+   .. task:: consul_start True 192.0.2.102
+      :prompt: [root@ubuntu]#
+
+   Now we will run ``consul join`` in order to introduce this server to the bootstrap server and hence all other members of the consul cluster.
+
+   .. task:: consul_join 192.0.2.101
+      :prompt: [root@ubuntu]#
+
 #. **Repeat the previous steps for all other nodes:**
 
    Log into your other nodes as root, and then complete step 2 and 3 until all the nodes in your cluster have installed the ``clusterhq-flocker-node`` and the optional ``clusterhq-flocker-docker-plugin`` package.

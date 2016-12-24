@@ -1447,6 +1447,40 @@ def task_install_docker_plugin(
     )
 
 
+def task_consul_start(bootstrap, advertise_address):
+    """
+    Start consul.
+    """
+    consul_server_command = [
+        'docker', 'run',
+        '--detach',
+        '--name', 'consul_server',
+        '--net', 'host',
+
+        'consul', 'agent',
+        '-server',
+        '-advertise', advertise_address,
+    ]
+    if bootstrap:
+        consul_server_command.append('-bootstrap')
+    return sequence([
+        run_from_args(['docker', 'pull', 'consul']),
+        run_from_args(consul_server_command),
+    ])
+
+
+def task_consul_join(bootstrap_address):
+    """
+    Join up the consul cluster.
+    """
+    return sequence([
+        run_from_args([
+            'docker', 'run',
+            '--rm', '--net', 'host',
+            'consul', 'join', bootstrap_address]),
+    ])
+
+
 ACCEPTANCE_IMAGES = [
     "postgres:latest",
     "clusterhq/mongodb:latest",
@@ -1610,7 +1644,7 @@ def configure_cluster(
                 ),
             ]) for certnkey, node
             in zip(cluster.certificates.nodes, cluster.agent_nodes)
-        ])
+        ]),
     ])
 
 
@@ -1782,36 +1816,54 @@ def configure_node(
     if provider == "managed":
         setup_action = 'restart'
 
+    tasks = [
+        task_install_node_certificates(
+            cluster.certificates.cluster.certificate,
+            certnkey.certificate,
+            certnkey.key),
+        task_install_api_certificates(
+            cluster.certificates.user.certificate,
+            cluster.certificates.user.key),
+        task_enable_docker(node.distribution),
+        if_firewall_available(
+            node.distribution,
+            open_firewall_for_docker_api(node.distribution),
+        ),
+        task_configure_flocker_agent(
+            control_node=cluster.control_node.address,
+            dataset_backend=cluster.dataset_backend,
+            dataset_backend_configuration=(
+                dataset_backend_configuration
+            ),
+            logging_config=logging_config,
+        ),
+        task_enable_docker_plugin(node.distribution),
+        task_enable_flocker_agent(
+            distribution=node.distribution,
+            action=setup_action,
+        ),
+    ]
+
+    if node is cluster.control_node:
+        tasks.append(
+            task_consul_start(
+                bootstrap=True,
+                advertise_address=node.address,
+            )
+        )
+    else:
+        tasks.extend([
+            task_consul_start(
+                bootstrap=False,
+                advertise_address=node.address,
+            ),
+            task_consul_join(cluster.control_node.address),
+        ])
+
     return run_remotely(
         username='root',
         address=node.address,
-        commands=sequence([
-            task_install_node_certificates(
-                cluster.certificates.cluster.certificate,
-                certnkey.certificate,
-                certnkey.key),
-            task_install_api_certificates(
-                cluster.certificates.user.certificate,
-                cluster.certificates.user.key),
-            task_enable_docker(node.distribution),
-            if_firewall_available(
-                node.distribution,
-                open_firewall_for_docker_api(node.distribution),
-            ),
-            task_configure_flocker_agent(
-                control_node=cluster.control_node.address,
-                dataset_backend=cluster.dataset_backend,
-                dataset_backend_configuration=(
-                    dataset_backend_configuration
-                ),
-                logging_config=logging_config,
-            ),
-            task_enable_docker_plugin(node.distribution),
-            task_enable_flocker_agent(
-                distribution=node.distribution,
-                action=setup_action,
-            ),
-        ]),
+        commands=sequence(tasks),
     )
 
 

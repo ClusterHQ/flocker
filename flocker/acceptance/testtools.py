@@ -873,8 +873,10 @@ class Cluster(PClass):
                 # Remove all existing containers on the node, in case
                 # they're left over from previous test; they might e.g.
                 # have a volume bind-mounted, preventing its destruction.
+                # XXX But don't kill the consul containers
                 for container in client.containers():
-                    client.remove_container(container["Id"], force=True)
+                    if "acceptance" in [name for name in container["Names"]]:
+                        client.remove_container(container["Id"], force=True)
 
         def cleanup_flocker_containers(_):
             cleaning_containers = api_clean_state(

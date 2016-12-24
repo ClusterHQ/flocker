@@ -52,6 +52,23 @@ __all__ = [
 ]
 
 
+def arbitrary_transformation(deployment):
+    """
+    Make some change to a deployment configuration.  Any change.
+
+    The exact change made is unspecified but the resulting ``Deployment`` will
+    be different from the given ``Deployment``.
+
+    :param Deployment deployment: A configuration to change.
+
+    :return: A ``Deployment`` similar but not exactly equal to the given.
+    """
+    uuid = uuid4()
+    return deployment.transform(
+        ["nodes", uuid], Node(uuid=uuid)
+    )
+
+
 def make_istatepersister_tests(fixture):
     """
     Create a TestCase for ``IStatePersister``.
@@ -137,7 +154,9 @@ def build_control_amp_service(test_case, reactor=None):
     cluster_state.startService()
     test_case.addCleanup(cluster_state.stopService)
     persistence_service = ConfigurationPersistenceService(
-        reactor, test_case.make_temporary_directory())
+        reactor=reactor,
+        configuration_saver=lambda deployment_data: None,
+    )
     persistence_service.startService()
     test_case.addCleanup(persistence_service.stopService)
     return ControlAMPService(

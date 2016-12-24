@@ -717,7 +717,8 @@ class FlockerClientTests(make_clientv1_tests()):
         clock = Clock()
         _, self.port = find_free_port()
         self.persistence_service = ConfigurationPersistenceService(
-            clock, FilePath(self.mktemp()))
+            reactor=clock
+        )
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService(reactor)
         self.cluster_state_service.startService()

@@ -31,7 +31,7 @@ from twisted.internet.task import Clock
 
 from testtools.matchers import Equals
 
-from ..testtools import build_control_amp_service
+from ..testtools import build_control_amp_service, arbitrary_transformation
 from ...testtools import TestCase
 from ...testtools.amp import (
     DelayedAMPClient, connected_amp_protocol,
@@ -53,23 +53,6 @@ from .. import (
 from .._persistence import wire_encode, make_generation_hash
 from .._diffing import create_diff
 from .clusterstatetools import advance_some, advance_rest
-
-
-def arbitrary_transformation(deployment):
-    """
-    Make some change to a deployment configuration.  Any change.
-
-    The exact change made is unspecified but the resulting ``Deployment`` will
-    be different from the given ``Deployment``.
-
-    :param Deployment deployment: A configuration to change.
-
-    :return: A ``Deployment`` similar but not exactly equal to the given.
-    """
-    uuid = uuid4()
-    return deployment.transform(
-        ["nodes", uuid], Node(uuid=uuid)
-    )
 
 
 def arbitrary_state_transformation(deployment_state):

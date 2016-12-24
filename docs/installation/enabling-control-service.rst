@@ -53,6 +53,10 @@ On AWS, an external firewall is used instead, which will need to be configured s
 Ubuntu 16.04
 ============
 
+In a previous step we started a ``consul`` "server" on each of the nodes and introduced them to form a cluster.
+With the consul database running we can now start the control service.
+It will create a unique Flocker key in the database and store the Flocker configuration there.
+
 .. task:: enable_flocker_control ubuntu-16.04
    :prompt: [root@control-node]#
 

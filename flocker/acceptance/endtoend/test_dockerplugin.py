@@ -122,6 +122,11 @@ class DockerPluginTests(AsyncTestCase):
         for container in client.containers():
             client.remove_container(container["Id"], force=True)
 
+        # Give the test containers a meaningful name so that we can identify
+        # which test produced any container that don't get garbage collected.
+        if "name" not in docker_arguments:
+            docker_arguments["name"] = random_name(self)
+
         container = client.create_container(
             "python:2.7-slim",
             ["python2.7", "-c", script.getContent()] + list(script_arguments),
