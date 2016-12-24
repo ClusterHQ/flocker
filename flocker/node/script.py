@@ -34,7 +34,7 @@ from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service,
     enable_profiling, disable_profiling)
-from . import P2PManifestationDeployer, ApplicationNodeDeployer
+from . import P2PManifestationDeployer
 from ._loop import AgentLoopService
 from .exceptions import StorageInitializationError
 from .diagnostics import (
@@ -55,7 +55,6 @@ from .backends import (
 
 __all__ = [
     "flocker_dataset_agent_main",
-    "flocker_container_agent_main",
     "flocker_diagnostics_main",
 ]
 
@@ -82,31 +81,6 @@ def flocker_dataset_agent_main():
     return FlockerScriptRunner(
         script=agent_script,
         options=options,
-    ).main()
-
-
-def flocker_container_agent_main():
-    """
-    Implementation of the ``flocker-container-agent`` command line script.
-
-    This starts a Docker-based container convergence agent.
-    """
-    def deployer_factory(cluster_uuid, **kwargs):
-        return ApplicationNodeDeployer(**kwargs)
-    service_factory = AgentServiceFactory(
-        deployer_factory=deployer_factory
-    ).get_service
-    agent_script = AgentScript(service_factory=service_factory)
-
-    # Use CPU time instead of wallclock time.
-    pr = cProfile.Profile(clock)
-
-    signal.signal(signal.SIGUSR1, partial(enable_profiling, pr))
-    signal.signal(signal.SIGUSR2, partial(disable_profiling, pr, 'container'))
-
-    return FlockerScriptRunner(
-        script=agent_script,
-        options=ContainerAgentOptions()
     ).main()
 
 
@@ -263,17 +237,6 @@ class DatasetAgentOptions(_AgentOptions):
     """
 
     synopsis = _AgentOptions.synopsis.format("flocker-dataset-agent")
-
-
-class ContainerAgentOptions(_AgentOptions):
-    """
-    Command line options for ``flocker-container-agent``.
-    """
-    longdesc = """\
-    flocker-container-agent runs a container convergence agent on a node.
-    """
-
-    synopsis = _AgentOptions.synopsis.format("flocker-container-agent")
 
 
 @implementer(ICommandLineScript)

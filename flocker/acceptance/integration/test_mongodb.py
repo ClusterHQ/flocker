@@ -28,7 +28,7 @@ def insert_data(test_case, host, port):
 
     def got_client(client):
         database = client.example
-        database.posts.insert({u"the data": u"it moves"})
+        database.posts.insert_one({u"the data": u"it moves"})
     d.addCallback(got_client)
     return d
 
