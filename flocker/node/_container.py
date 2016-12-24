@@ -111,6 +111,7 @@ class StartApplication(PClass):
             # The only supported policy is "never".  See FLOC-2449.
             restart_policy=RestartNever(),
             command_line=application.command_line,
+            swappiness=application.swappiness,
         )
 
 
@@ -315,6 +316,7 @@ class ApplicationNodeDeployer(object):
                 restart_policy=container.restart_policy,
                 running=(container.activation_state == u"active"),
                 command_line=container.command_line,
+                swappiness=container.swappiness,
             ))
         return applications
 

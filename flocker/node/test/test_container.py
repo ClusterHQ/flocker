@@ -460,6 +460,34 @@ class StartApplicationTests(TestCase):
             pvector(command_line),
         )
 
+    def test_swappiness(self):
+        """
+        ``StartApplication.run()`` passes ``swappiness`` to
+        ``DockerClient.add`` which is used when creating a Unit.
+        """
+        expected_swappiness = 99
+        fake_docker = FakeDockerClient()
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            swappiness=expected_swappiness,
+        )
+
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE,
+        ).run(deployer, state_persister=InMemoryStatePersister())
+
+        [unit] = self.successResultOf(fake_docker.list())
+        self.assertEqual(
+            expected_swappiness,
+            unit.swappiness,
+        )
+
 
 class LinkEnviromentTests(TestCase):
     """
@@ -675,6 +703,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         unit1 = UNIT_FOR_APP.set("mem_limit", memory_limit)
         units = {unit1.name: unit1}
         applications = [APP.set("memory_limit", memory_limit)]
+        self._verify_discover_state_applications(units, applications)
+
+    def test_discover_application_with_swappiness(self):
+        """
+        An ``Application`` with a swappiness value is discovered from a
+        ``Unit`` with a swappiness value.
+        """
+        swappiness = 99
+        unit1 = UNIT_FOR_APP.set("swappiness", swappiness)
+        units = {unit1.name: unit1}
+        applications = [APP.set("swappiness", swappiness)]
         self._verify_discover_state_applications(units, applications)
 
     def test_discover_application_with_environment(self):
@@ -1479,6 +1518,49 @@ class ApplicationNodeDeployerCalculateChangesTests(TestCase):
                 ]),
         ])])
 
+        self.assertEqual(expected, result)
+
+    def test_app_with_changed_swappiness_restarted(self):
+        """
+        An ``Application`` running on a given node that has different
+        swappiness specified in the desired state to the swappiness specified
+        by the application's current state is added to the list of applications
+        to restart.
+        """
+        api = ApplicationNodeDeployer(
+            u'node1.example.com',
+            docker_client=FakeDockerClient(),
+        )
+        old_wordpress_app = Application(
+            name=u'wordpress-example',
+            image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
+            volume=None,
+            swappiness=97,
+        )
+        postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest')
+        )
+        new_wordpress_app = old_wordpress_app.set("swappiness", 98)
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=u'node1.example.com',
+                 applications=frozenset({new_wordpress_app, postgres_app})),
+        }))
+        node_state = NodeState(hostname=api.hostname,
+                               applications={postgres_app, old_wordpress_app})
+        result = api.calculate_changes(
+            desired_configuration=desired,
+            current_cluster_state=DeploymentState(nodes={node_state}),
+            local_state=NodeLocalState(node_state=node_state),
+        )
+        expected = sequentially(changes=[in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=old_wordpress_app),
+                StartApplication(application=new_wordpress_app,
+                                 node_state=node_state)
+                ]),
+        ])])
         self.assertEqual(expected, result)
 
     def test_stopped_app_with_change_restarted(self):
