@@ -136,6 +136,10 @@ setup(
 
     install_requires=install_requires,
 
+    install_requires=[
+        "Twisted == 13.2.0"
+        ],
+
     extras_require={
         # This extra is for developers who need to work on Flocker itself.
         "dev": dev_requires,
