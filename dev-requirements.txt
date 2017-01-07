@@ -1,3 +1,7 @@
+# Do not install the broken pycparser-2.14-py2.py3-none-any.whl
+# Workaround for:
+# https://github.com/eliben/pycparser/issues/148
+--no-binary pycparser
 # Install everything required for local development.
 --requirement requirements/all.txt
 --editable .
