@@ -16,7 +16,7 @@ You can also use Flocker to manage only your volumes, while continuing to manage
 About Us
 --------
 
-Flocker is being developed by `ClusterHQ`_.
+Flocker is being maintained by `ScatterHQ`_.
 We are a small team of engineers with experience running distributed systems and many of us are core contributors to the `Twisted`_ project.
 
 This project is under active development; version 1.0 was released on June 17th, 2015.
@@ -49,7 +49,7 @@ You can run all of the tox environments using the command ``tox``.
 
 Flocker is also tested using `continuous integration`_.
 
-.. _ClusterHQ: https://clusterhq.com/
+.. _ClusterHQ: https://scatterhq.com/
 .. _Twisted: https://twistedmatrix.com/trac/
 .. _Flocker docs: https://flocker.readthedocs.io/
 .. _unittest: https://docs.python.org/2/library/unittest.html
