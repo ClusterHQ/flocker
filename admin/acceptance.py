@@ -27,7 +27,7 @@ from twisted.python.failure import Failure
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from twisted.python.reflect import prefixedMethodNames
 
-from effect import parallel
+from effect import parallel, Func, Effect
 from txeffect import perform
 
 from uuid import UUID
@@ -41,7 +41,7 @@ from flocker.common import (
 )
 from flocker.common.script import eliot_to_stdout
 
-from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
+from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS, Cluster
 from flocker.provision._ssh import (
     run_remotely,
     ensure_agent_has_ssh_key,
@@ -53,11 +53,9 @@ from flocker.provision._install import (
     install_flocker,
     configure_cluster,
     configure_node,
-    configure_zfs,
 )
 from flocker.provision._ca import Certificates
 from flocker.provision._ssh._conch import make_dispatcher
-from flocker.provision._common import Cluster
 from flocker.testtools.cluster_utils import (
     make_cluster_id, TestTypes
 )
@@ -532,11 +530,15 @@ def configured_cluster_for_nodes(
         dataset_backend_config_file=dataset_backend_config_file
     )
 
-    configuring = perform(
-        make_dispatcher(reactor),
-        configure_cluster(
+    commands = Effect(Func(
+        lambda: dataset_backend.acceptance_configure_cluster(cluster)
+    )).on(
+        success=lambda _: configure_cluster(
             cluster, dataset_backend_configuration, provider, logging_config
-        )
+        ),
+    )
+    configuring = perform(
+        make_dispatcher(reactor), commands,
     )
     configuring.addCallback(lambda ignored: cluster)
     return configuring
@@ -619,9 +621,10 @@ class LibcloudRunner(object):
         """
         commands = node.provision(package_source=self.package_source,
                                   variants=self.variants)
-        if self.dataset_backend == backends.ZFS:
-            zfs_commands = configure_zfs(node, variants=self.variants)
-            commands = commands.on(success=lambda _: zfs_commands)
+        commands = commands.on(
+            success=lambda _:
+            self.dataset_backend.acceptance_configure_node(node),
+        )
 
         d = remove_known_host(reactor, node.address)
         d.addCallback(lambda _: perform(make_dispatcher(reactor), commands))
@@ -838,16 +841,14 @@ class LibcloudRunner(object):
             del node
 
         commands = parallel([
-            node.provision(package_source=self.package_source,
-                           variants=self.variants)
-            for node in self.nodes
+            node.provision(
+                package_source=self.package_source,
+                variants=self.variants
+            ).on(
+                success=lambda _, node=node:
+                    self.dataset_backend.acceptance_provision_node(node)
+            ) for node in self.nodes
         ])
-        if self.dataset_backend == backends.ZFS:
-            zfs_commands = parallel([
-                configure_zfs(node, variants=self.variants)
-                for node in self.nodes
-            ])
-            commands = commands.on(success=lambda _: zfs_commands)
 
         yield perform(make_dispatcher(reactor), commands)
 
