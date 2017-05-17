@@ -12,3 +12,4 @@ Flocker Features
    security
    storage-backends
    storage-profiles
+   configuration-stores

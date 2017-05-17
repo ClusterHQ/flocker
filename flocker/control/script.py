@@ -22,6 +22,7 @@ from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
 from .configuration_store.directory import directory_store_from_options
+from .configuration_store.zookeeper import zookeeper_store_from_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
     enable_profiling, disable_profiling)
@@ -70,6 +71,14 @@ CONFIGURATION_STORE_PLUGINS = [
         ]],
 
     ),
+    ConfigurationStorePlugin(
+        name=u'zookeeper',
+        factory=zookeeper_store_from_options,
+        options=[[
+            "zookeeper-hosts", "z", b"localhost:2181",
+            "The directory where data will be persisted.", str
+        ]],
+    )
 ]
 CONFIGURATION_STORE_PLUGINS_BY_NAME = {
     p.name: p for p in CONFIGURATION_STORE_PLUGINS

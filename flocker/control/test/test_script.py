@@ -76,6 +76,43 @@ class ControlOptionsTests(make_standard_options_test(ControlOptions)):
         options.parseOptions([b"--data-path", b"/var/xxx"])
         self.assertEqual(options["data-path"], FilePath(b"/var/xxx"))
 
+    def test_configuration_store_plugin_zookeeper(self):
+        """
+        ``--configuration-store-plugin=zookeeper`` sets ZooKeeper config store
+        plugin
+        """
+        options = ControlOptions()
+        options.parseOptions(["--configuration-store-plugin=zookeeper"])
+        self.assertEqual(
+            u"zookeeper",
+            options["configuration-store-plugin"].name
+        )
+
+    def test_configuration_zookeeper_default_hosts(self):
+        """
+        ``--configuration-store-plugin=zookeeper`` sets default host string for
+        Kazoo
+        """
+        options = ControlOptions()
+        options.parseOptions(["--configuration-store-plugin=zookeeper"])
+        self.assertEqual(
+            u"localhost:2181",
+            options["zookeeper-hosts"]
+        )
+
+    def test_configuration_zookeeper_hosts(self):
+        """
+        ``--zookeeper-hosts`` sets host string for Kazoo
+        """
+        options = ControlOptions()
+        options.parseOptions(["--configuration-store-plugin=zookeeper",
+                              "--zookeeper-hosts",
+                              "example.com:2000,example.org:3000"])
+        self.assertEqual(
+            "example.com:2000,example.org:3000",
+            options["zookeeper-hosts"]
+        )
+    
     def test_default_agent_port(self):
         """
         The default AMP port configured by ``ControlOptions`` is 4524.

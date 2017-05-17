@@ -18,6 +18,7 @@ google-compute-engine==2.3.2
 hypothesis==3.6.0
 ipaddr==2.1.11
 jsonschema==2.5.1
+kazoo==2.2.1
 keystoneauth1==2.16.0
 # FLOC-4410 keystoneclient 3.0.0 moves some exceptions around.
 python-keystoneclient==2.3.1
