@@ -1008,6 +1008,8 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-node-era'),
                      flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-zk'),
+                     flocker_node_path),
                 ]
             ),
             BuildPackage(
@@ -1120,10 +1122,13 @@ class DockerBuild(object):
         to build.
     """
     def run(self):
-        check_call(
-            ['docker', 'build',
-             '--pull', '--tag', self.tag,
-             self.build_directory.path])
+        cmd = ['docker', 'build']
+        for env_key in ('http_proxy', 'https_proxy'):
+            env_val = os.environ.get(env_key)
+            if env_val is not None:
+                cmd.extend(['--build-arg', '='.join((env_key, env_val))])
+        cmd.extend(['--pull', '--tag', self.tag, self.build_directory.path])
+        check_call(cmd)
 
 
 @attributes(['tag', 'volumes', 'command'])
@@ -1142,9 +1147,14 @@ class DockerRun(object):
         for container, host in self.volumes.iteritems():
             volume_options.extend(
                 ['--volume', '%s:%s' % (host.path, container.path)])
-
+        proxy_options = []
+        for env_key in ('http_proxy', 'https_proxy'):
+            env_val = os.environ.get(env_key)
+            if env_val is not None:
+                proxy_options.extend(['-e', '='.join((env_key, env_val))])
         result = call(
             ['docker', 'run', '--rm'] +
+            proxy_options +
             volume_options + [self.tag] + self.command)
         if result:
             raise SystemExit(result)

@@ -131,6 +131,7 @@ setup(
             'flocker-benchmark = ' +
             'flocker.node.benchmark:flocker_benchmark_main',
             'flocker-node-era = flocker.common._era:era_main',
+            'flocker-zk = flocker.cli.zookeeper_script:main'
         ],
     },
 

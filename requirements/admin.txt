@@ -1,3 +1,4 @@
+kazoo==2.2.1
 apache-libcloud==1.4.0
 # The `aws` command is required by the ``admin.installer``,
 # `admin.test.test_installer` and in the release process.
